@@ -1,0 +1,72 @@
+/* ─── Google Fonts ─────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap');
+
+@import "tailwindcss";
+
+
+/* ─── Brand Tokens (source of truth: design-system/sunriseblooms/MASTER.md) ── */
+@theme {
+  /* Colors */
+  --color-brand-background: #EDE7DA;
+  --color-brand-card: #F4F1E9;
+  --color-brand-surface: #D6CFB0;
+  --color-brand-foreground: #4A4535;
+  --color-brand-muted: #655F4D;
+  --color-brand-border: #A09A8A;
+  --color-brand-input-border: #7A7461;
+  --color-brand-on-foreground: #EDE7DA;
+  --color-brand-on-image: #FFFFFF;
+  --color-brand-lavender: #D1C3DC;
+  --color-brand-peach: #F2D1BC;
+  --color-brand-gold: #EBB658;
+  --color-brand-sage: #B6C09D;
+  --color-brand-ring: #4A4535;
+
+  /* Typography */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Jost', system-ui, sans-serif;
+
+  /* Spacing scale */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 48px;
+  --spacing-2xl: 96px;
+
+  /* Border radius — square corners everywhere */
+  --radius: 0;
+}
+
+/* ─── Base styles ───────────────────────────────────────── */
+@layer base {
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    background-color: var(--color-brand-background);
+    color: var(--color-brand-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+    letter-spacing: 0.05em;
+  }
+
+  /* Focus ring — keyboard accessible */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-ring);
+    outline-offset: 2px;
+  }
+}
