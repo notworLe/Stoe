@@ -18,3 +18,7 @@ Các type thường dùng
 - test: thêm/sửa test
 - chore: việc vặt (cập nhật dependency, config, build)
 - perf: cải thiện hiệu năng
+
+
+# Workflow
+Tạo thẻ trên board → kéo vào Doing → git switch -c feat/ten-tinh-nang → code + test → PR → CI xanh → merge → kéo sang Done
