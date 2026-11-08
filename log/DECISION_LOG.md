@@ -1,0 +1,131 @@
+---
+title: Decision Log — retail-system
+doc_type: report
+project: retail-system
+layer: all
+author: notworLe
+ai_assisted: true
+ai_agent: Antigravity
+created: 2026-11-08
+updated: 2026-11-08
+last_updated_by: Antigravity
+version: 0.1.0
+status: draft
+reviewers: []
+related_docs:
+  - ../.agents/rule/LOG.md
+  - ../.agents/rule/AI_DELEGATION_LOOP.md
+tags: [log, decision, governance]
+---
+
+# Decision Log — retail-system
+
+> File này là bộ nhớ quyết định của dự án. Đọc hết **ACTIVE RULES** trước mỗi phiên.
+> Chỉ đọc HISTORY khi: (a) người dùng yêu cầu, hoặc (b) sắp thay đổi thứ gì đã nhắc trong ACTIVE RULES.
+> Quy tắc chi tiết: xem [LOG.md](../.agents/rule/LOG.md).
+
+---
+
+## CÁCH DÙNG
+
+1. Chỉ **ACTIVE RULES** là luật. PROPOSED và HISTORY không phải luật.
+2. Agent **chỉ được ghi vào PROPOSED**. Không tự sửa ACTIVE RULES hay HISTORY.
+3. Chỉ người dùng được duyệt PROPOSED thành ACTIVE (nói rõ "duyệt D-xxx" hoặc "chốt").
+4. Quyết định mâu thuẫn ACTIVE RULES → dừng, nêu rõ luật nào, hỏi lại.
+
+---
+
+## ACTIVE RULES
+
+> Tối đa 25 dòng. Mỗi luật cụ thể, kiểm chứng được, kèm mã quyết định.
+
+- R-01: Việc không thể đảo ngược (xóa file, đổi schema, ghi đè dữ liệu) → hỏi trước khi làm. (D-001)
+- R-02: Quyết định do agent đưa ra → ghi vào PROPOSED, không áp dụng như luật. (D-002)
+- R-03: Chuyển/đổi tên file → cập nhật mọi tham chiếu và báo lại danh sách đã sửa. (D-003)
+- R-04: Stack cố định: PostgreSQL · FastAPI · Next.js + Tailwind. Không tự đổi stack. (D-004)
+- R-05: Agent mặc định L2 — viết code + test, dừng trước commit. Không tự `git commit` hay `git push`. (D-005)
+- R-06: Mọi color token phải khai báo trong `tailwind.config.ts`, không hardcode hex trong component. (D-006)
+- R-07: Mọi file `.md` phải có YAML front matter + bảng lịch sử thay đổi theo chuẩn DOC.md. (D-007)
+- R-08: Mọi quyết định đáng ghi → ghi vào file này ngay trong phiên đó. (D-008)
+
+---
+
+## PROPOSED
+
+> Chờ người dùng duyệt. Agent ghi vào đây theo đúng mẫu.
+
+(trống)
+
+---
+
+## HISTORY
+
+> Mới nhất ở trên. Không xóa dòng nào — đổi ý thì chuyển `status: superseded`.
+
+### D-008 | 2026-11-08 | by: human | status: active
+- Context: Cần hệ thống log quyết định để không lặp lại sai lầm
+- Decision: Mọi quyết định đáng ghi → log vào `log/DECISION_LOG.md` ngay trong phiên
+- Reason: Dự án dài, nhiều phiên chat — không log thì mất context
+- Supersedes: none
+
+### D-007 | 2026-11-08 | by: human | status: active
+- Context: Agent viết docs thiếu metadata, bị nhắc nhiều lần
+- Decision: Mọi file `.md` phải có YAML front matter đầy đủ + bảng lịch sử thay đổi theo chuẩn `DOC.md`
+- Reason: Truy vết được ai viết, ai sửa, khi nào, trạng thái gì
+- Supersedes: none
+
+### D-006 | 2026-11-08 | by: human | status: active
+- Context: Yêu cầu build landing page với color tokens
+- Decision: Toàn bộ màu sắc khai báo trong `tailwind.config.ts` dưới `colors.brand.*`; không dùng hex trực tiếp trong JSX/TSX
+- Reason: Scalable, dễ đổi theme, nhất quán toàn project
+- Supersedes: none
+
+### D-005 | 2026-11-08 | by: human | status: active
+- Context: Agent tự `git commit` và `git push` nhiều lần dù không được giao L3
+- Decision: Agent mặc định L2 — không tự commit, không tự push; dừng và báo cáo để người dùng commit
+- Reason: Đúng quy trình AI_DELEGATION_LOOP — L2 dừng trước commit
+- Supersedes: none
+
+### D-004 | 2026-11-08 | by: human | status: active
+- Context: Chốt tech stack đầu dự án
+- Decision: Stack cố định — PostgreSQL (DB) · Python FastAPI (backend) · Next.js + Tailwind (frontend)
+- Reason: Nhất quán, không phát sinh thêm dependency ngoài stack đã duyệt
+- Supersedes: none
+
+### D-003 | 2026-11-08 | by: human | status: active
+- Context: Agent chuyển file xong nhưng import cũ bị hỏng
+- Decision: Đổi tên/chuyển file phải cập nhật mọi tham chiếu và báo lại danh sách đã sửa
+- Reason: Tránh lỗi âm thầm sau khi di chuyển
+- Supersedes: none
+
+### D-002 | 2026-11-08 | by: human | status: active
+- Context: Agent tự quyết rồi làm như đã được duyệt
+- Decision: Quyết định do agent đưa ra chỉ là đề xuất cho đến khi người dùng duyệt
+- Reason: Phân biệt "người dùng đã chốt" với "agent tự đoán"
+- Supersedes: none
+
+### D-001 | 2026-11-08 | by: human | status: active
+- Context: Cần chặn hành động phá hủy ngoài ý muốn
+- Decision: Xóa file, đổi schema, ghi đè dữ liệu phải hỏi trước
+- Reason: Không thể hoàn tác nếu sai
+- Supersedes: none
+
+---
+
+## MẪU GHI MỚI
+
+```
+### D-xxx | YYYY-MM-DD | by: human | agent | status: proposed | active | superseded | rejected
+- Context: (vấn đề gì xảy ra)
+- Decision: (quyết định, một câu cụ thể)
+- Reason: (vì sao — để biết khi nào được phá luật)
+- Supersedes: D-yyy hoặc none
+```
+
+---
+
+## Lịch sử thay đổi
+
+| Version | Ngày | Người sửa | Agent | Mô tả thay đổi |
+| :--- | :--- | :--- | :--- | :--- |
+| 0.1.0 | 2026-11-08 | notworLe | Antigravity | Khởi tạo — log lại 8 quyết định từ phiên đầu |
