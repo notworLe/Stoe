@@ -59,7 +59,7 @@ KHÔNG ghi: lựa chọn nhỏ, bấm nút nào, sửa typo, việc git commit �
 
 ## MẪU GHI MỚI
 
-### D-xxx | YYYY-MM-DD HH:MM | by: human | agent | human-approved | status: proposed | active | superseded | rejected
+### D-xxx | YYYY-MM-DD HH:MM time | by: human | agent | human-approved | status: proposed | active | superseded | rejected
 - Context: (vấn đề gì xảy ra)
 - Decision: (quyết định, một câu cụ thể)
 - Reason: (vì sao, để biết khi nào được phá luật)

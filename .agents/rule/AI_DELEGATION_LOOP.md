@@ -2,7 +2,7 @@
 
 Nhịp điệu làm việc giữa Kỹ sư và AI Agent cho mỗi tác vụ phần mềm:
 
-`Describe → Generate → Review → Run → Test → Refactor → Commit`
+`Describe → Generate → Review → Run → Test → Refactor → Log -> Commit`
 
 Stack cố định: **PostgreSQL** (database) · **Python FastAPI** (backend) · **Next.js** (frontend) · **mobile** · **desktop** (tùy chọn).
 
@@ -121,7 +121,11 @@ Agent PHẢI dừng và hỏi lại khi:
 [ 6. REFACTOR ]  ──► Tinh gọn, ruff + mypy (BE), eslint + tsc (FE), đồng bộ OpenAPI types
        │
        ▼
-[ 7. COMMIT ]    ──► git status, commit nguyên tử, cập nhật trạng thái task
+
+[7. LOG] [Đọc õ ở LOG.md]
+       │
+       ▼
+[ 8u=. COMMIT ]    ──► git status, commit nguyên tử, cập nhật trạng thái task
 ```
 
 ### Bước 1: DESCRIBE
