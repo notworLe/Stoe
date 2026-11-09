@@ -9,3 +9,14 @@ services:
     volumes:
       - ./backend:/backend
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--reload"]
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/frontend
+    command: ["npm", "run", "dev"]

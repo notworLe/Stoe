@@ -28,8 +28,10 @@ Thư mục này chứa toàn bộ tài liệu kỹ thuật của frontend **LUA 
 | File / Thư mục | Mô tả |
 | :--- | :--- |
 | [`roadmap/ROADMAP.md`](roadmap/ROADMAP.md) | **Lộ trình phát triển** — 4 giai đoạn từ setup đến launch |
+| [`navigation-tutorial.md`](navigation-tutorial.md) | **Hướng dẫn cho Newbie** — Hệ thống điều hướng & Mobile Menu |
 | `design-system.md` | Token màu, typography, spacing *(sẽ tạo ở Giai đoạn 4)* |
 | `architecture.md` | Cấu trúc module, cách thêm section mới *(sẽ tạo ở Giai đoạn 4)* |
+
 
 ---
 
