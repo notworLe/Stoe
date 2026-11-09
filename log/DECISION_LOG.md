@@ -54,7 +54,35 @@ tags: [log, decision, governance]
 
 > Chờ người dùng duyệt. Agent ghi vào đây theo đúng mẫu.
 
-(trống)
+### D-013 | 2026-11-09 | by: agent | status: proposed
+- Context: Phase 2 — cần icon brand (Instagram, Facebook); lucide-react không có brand icons
+- Decision: Dùng `react-icons/fa6` cho social brand icons; `lucide-react` cho UI icons (menu, chevron, bag...)
+- Reason: Tách biệt rõ: lucide = UI chrome, react-icons/fa = brand logos; tree-shake tốt
+- Supersedes: none
+
+### D-012 | 2026-11-09 | by: agent | status: proposed
+- Context: Phase 2 — blocks/ cần 11 components cho Phase 3-5 nhưng chưa có data thật
+- Decision: Tạo stub components với interface đúng + placeholder UI; không build logic thật cho đến phase tương ứng
+- Reason: Đảm bảo cấu trúc folder đúng, TypeScript compile ngay từ đầu, tránh refactor lớn sau
+- Supersedes: none
+
+### D-011 | 2026-11-09 | by: agent | status: proposed
+- Context: Root .gitignore có `lib/` (Python rule) vô tình ignore `frontend/src/lib/`
+- Decision: Thêm `!frontend/src/lib/` exception vào root .gitignore
+- Reason: `lib/` Python rule chỉ nên áp dụng cho backend Python, không ảnh hưởng frontend source
+- Supersedes: none
+
+### D-010 | 2026-11-09 | by: agent | status: proposed
+- Context: Next.js 16 Server Component không cho phép `new Date()` khi prerender
+- Decision: Hardcode năm trong Footer copyright thay vì `new Date().getFullYear()`
+- Reason: Copyright year là giá trị tĩnh theo năm — không cần dynamic per request
+- Supersedes: none
+
+### D-009 | 2026-11-09 | by: agent | status: proposed
+- Context: Phase 2 — chọn thư viện dependency cho base components
+- Decision: Cài thêm `clsx`, `tailwind-merge`, `lucide-react`, `react-icons` vào frontend
+- Reason: clsx+twMerge = cn() helper chuẩn; lucide = UI icons nhất quán; react-icons/fa6 = brand social icons
+- Supersedes: none
 
 ---
 
