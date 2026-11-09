@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi">
+    <html lang="en">
       <body className="bg-brand-background text-brand-foreground font-sans">
         <Header />
         {children}
