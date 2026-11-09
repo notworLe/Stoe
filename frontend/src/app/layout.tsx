@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="vi">
       <body className="bg-brand-background text-brand-foreground font-sans">
         <Header />
-        <main>{children}</main>
+        {children}
         <Footer />
       </body>
     </html>

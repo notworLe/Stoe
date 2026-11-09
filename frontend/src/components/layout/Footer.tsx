@@ -40,7 +40,7 @@ export default function Footer() {
           <nav aria-label="Footer navigation">
             <ul className="flex flex-col gap-3">
               {NAV_LINKS.map((link) => (
-                <li key={link.href}>
+                <li key={link.id}>
                   <Link
                     href={link.href}
                     className={cn(

@@ -22,6 +22,12 @@
   --color-brand-sage: #B6C09D;
   --color-brand-ring: #4A4535;
 
+  /* đỏ logo LỤA */
+  --color-brand-accent: #9C0C0B;
+
+
+
+
   /* Typography */
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'Jost', system-ui, sans-serif;
