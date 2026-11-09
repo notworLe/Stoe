@@ -3,5 +3,5 @@
 ```
 git clone ...
 cp .env.example .env
-docker compose up
+docker compose up --build
 ```
