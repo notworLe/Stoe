@@ -54,6 +54,36 @@ tags: [log, decision, governance]
 
 > Chờ người dùng duyệt. Agent ghi vào đây theo đúng mẫu.
 
+### D-018 | 2026-11-09 | by: agent | status: proposed
+- Context: Cần hoàn thiện Mobile Drawer Navigation theo mẫu `docs/mobile/hambuger.png` cho Header.
+- Decision: Tạo component `MobileMenu.tsx` (toàn màn hình, nút CLOSE góc trên phải, 4 nhóm mục kèm chevron, lock scroll body, hỗ trợ phím Escape) và chuyển `Header.tsx` sang `"use client"` để quản lý trạng thái mở menu.
+- Reason: Đảm bảo trải nghiệm mobile editorial tối giản chuẩn SSENSE, đồng bộ với desktop và giữ nguyên bảng màu Warm Ivory.
+- Supersedes: none
+
+### D-017 | 2026-11-09 | by: agent | status: proposed
+- Context: `<Image fill>` trong Hero section đè lên viền padding cha và Hero không khớp 100vh màn hình đầu tiên khi kết hợp Navbar.
+- Decision: Tách biệt box cha `<section>` quản lý layout/padding với chiều cao `h-[calc(100dvh-4rem)]` (Navbar 4rem = 64px) và box con `<div>` chứa ảnh `fill`.
+- Reason: Tránh ảnh đè lên padding viền cha; đảm bảo Navbar + Hero chiếm đúng 100% viewport (`100dvh`), cho phép chỉnh `py` dễ dàng mà không tràn màn hình.
+- Supersedes: none
+
+### D-016 | 2026-11-09 | by: agent | status: proposed
+- Context: Khai báo `--spacing-xs: 4px; ... --spacing-xl: 48px;` trong `@theme` tại `globals.css` khiến Tailwind CSS v4 tự động ghi đè thang đo `max-w-*`, làm `max-w-xs` thành 4px, `max-w-xl` thành 48px và chữ bị ép thành 1 cột dọc.
+- Decision: Đổi tên các biến spacing thành `--space-xs` ... `--space-2xl` chuẩn theo MASTER.md, trả lại các giá trị `max-w-*` container width mặc định của Tailwind.
+- Reason: Tránh xung đột namespace nội bộ của Tailwind v4, giúp các khối văn bản ở Hero, About, Spotlight và MetadataBar dàn hàng ngang chuẩn thiết kế.
+- Supersedes: none
+
+### D-015 | 2026-11-09 | by: agent | status: proposed
+- Context: Workflow CI `.github/workflows/ci.yml` dùng matrix chung chạy các step Python (`uv sync`) cho cả frontend, gây fail do frontend không có `pyproject.toml`.
+- Decision: Tách CI thành 2 jobs riêng biệt: `backend` (Python 3.12, `uv`) và `frontend` (Node 22, `npm ci`, `eslint`, `tsc`, `next build`).
+- Reason: Đảm bảo CI chạy đúng tooling từng layer, phát hiện sớm lỗi prerender và type check của Next.js trước khi deploy lên Vercel.
+- Supersedes: none
+
+### D-014 | 2026-11-09 | by: agent | status: proposed
+- Context: Deploy Vercel bị crash ở bước prerender route `/shop/[slug]` do Next.js 16 Partial Prerendering (PPR) chặn việc truy cập trực tiếp `await params` mà không có boundary Suspense.
+- Decision: Tách phần đọc `params` vào subcomponent async `ProductContent` và bọc trong `<Suspense fallback={...}>` tại `ProductPage`.
+- Reason: Tuân thủ quy chuẩn PPR của Next.js 16, cho phép shell tĩnh prerender trước và dynamic data stream sau, đưa build thành công exit code 0.
+- Supersedes: none
+
 ### D-013 | 2026-11-09 | by: agent | status: proposed
 - Context: Phase 2 — cần icon brand (Instagram, Facebook); lucide-react không có brand icons
 - Decision: Dùng `react-icons/fa6` cho social brand icons; `lucide-react` cho UI icons (menu, chevron, bag...)

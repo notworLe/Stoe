@@ -12,7 +12,7 @@
 export const NAV_LINKS = [
   { id: "instagram", label: "INSTAGRAM", href: "https://www.instagram.com/luastudio.melb" },
   { id: "home", label: "HOME", href: "/" },
-  { id: "about", label: "ABOUT", href: "/about" },
+  { id: "about", label: "ABOUT", href: "#about" },
   { id: "logo", label: "LỤA STUDIO", href: "/" },
   { id: "process", label: "PROCESS", href: "/size-guide" },
   { id: "portfolio", label: "PORTFOLIO", href: "/portfolio" },
