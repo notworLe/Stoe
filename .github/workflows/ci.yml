@@ -15,7 +15,7 @@ jobs:
       matrix:
         service:
           - backend  # thêm service khác vào đây khi có: frontend, worker...
-
+          - frontend
     defaults:
       run:
         working-directory: ${{ matrix.service }}
