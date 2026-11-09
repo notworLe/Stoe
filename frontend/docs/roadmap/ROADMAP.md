@@ -31,14 +31,15 @@ Mỗi giai đoạn là một đơn vị giao việc độc lập theo [AI_DELEGA
 
 ## Tổng quan
 
-| # | Giai đoạn | Layer | Autonomy | Trạng thái |
-| :---: | :--- | :---: | :---: | :---: |
-| 1 | Setup project + Design Tokens | frontend | L2 | `To Do` |
-| 2 | Module architecture + Base components | frontend | L2 | `To Do` |
-| 3 | Homepage — Landing page | frontend | L2 | `To Do` |
-| 4 | Shop / Collection page | frontend | L2 | `To Do` |
-| 5 | Product page (booking + checkout) | frontend | L2 | `To Do` |
-| 6 | Docs | frontend | L2 | `To Do` |
+| # | Giai đoạn | Layer | Autonomy | Trạng thái | Chi tiết |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 1 | Setup project + Design Tokens | frontend | L2 | `Done` | [`0001-phase1.md`](0001-phase1.md) |
+| 2 | Module architecture + Base components | frontend | L2 | `Done` | [`0002-phase2.md`](0002-phase2.md) |
+| 3 | Homepage — Landing page | frontend | L2 | `Done` | [`0003-phase3.md`](0003-phase3.md) |
+| 4 | Shop / Collection page | frontend | L2 | `To Do` | |
+| 5 | Product page (booking + checkout) | frontend | L2 | `To Do` | |
+| 6 | Docs | frontend | L2 | `To Do` | |
+
 
 ---
 
@@ -80,11 +81,11 @@ Mỗi giai đoạn là một đơn vị giao việc độc lập theo [AI_DELEGA
 
 ### Definition of Done
 
-- [ ] `npm run dev` chạy được, không lỗi.
-- [ ] Trang trắng hiện đúng màu `brand.background`.
-- [ ] Cormorant Garamond + Jost render đúng.
-- [ ] Không có hex hardcode trong bất kỳ component nào.
-- [ ] `make lint-fe` sạch.
+- [x] `npm run dev` chạy được, không lỗi.
+- [x] Trang trắng hiện đúng màu `brand.background`.
+- [x] Cormorant Garamond + Jost render đúng.
+- [x] Không có hex hardcode trong bất kỳ component nào.
+- [x] `make lint-fe` / `npm run lint` sạch.
 
 ---
 
@@ -142,11 +143,11 @@ frontend/src/
 
 ### Definition of Done
 
-- [ ] Cấu trúc folder đúng như trên.
-- [ ] `Button.tsx`, `Chip.tsx`, `Input.tsx`, `Accordion.tsx` hoạt động với token màu.
-- [ ] `Section.tsx` wrap đúng responsive padding.
-- [ ] `cn()` helper hoạt động.
-- [ ] `Header.tsx`: logo centered, 3 link trái, 3 link phải, cart icon phải, hamburger mobile.
+- [x] Cấu trúc folder đúng như trên.
+- [x] `Button.tsx`, `Chip.tsx`, `Input.tsx`, `Accordion.tsx` hoạt động với token màu.
+- [x] `Section.tsx` wrap đúng responsive padding.
+- [x] `cn()` helper hoạt động.
+- [x] `Header.tsx`: logo centered, 3 link trái, 3 link phải, cart icon phải, hamburger mobile.
 
 ---
 
@@ -174,11 +175,11 @@ frontend/src/
 
 ### Definition of Done
 
-- [ ] 4 section render đúng trên 375px, 768px, 1024px, 1440px.
-- [ ] Overlay hero đúng, text readable.
-- [ ] Nav order: Home · Shop/Collection · How to Rent · Size Guide · FAQs · Contact.
-- [ ] Không có hex hardcode.
-- [ ] Ảnh có `alt` text mô tả.
+- [x] 4 section render đúng trên 375px, 768px, 1024px, 1440px.
+- [x] Overlay hero đúng, text readable.
+- [x] Nav order và Mobile Menu drawer hoàn chỉnh theo docs.
+- [x] Không có hex hardcode.
+- [x] Ảnh có `alt` text mô tả.
 
 ---
 
@@ -265,3 +266,4 @@ frontend/src/
 | :--- | :--- | :--- | :--- | :--- |
 | 0.1.0 | 2026-11-08 | notworLe | Antigravity | Khởi tạo roadmap 4 giai đoạn |
 | 0.2.0 | 2026-11-09 | notworLe | Antigravity | Cập nhật theo MASTER.md mới: token đầy đủ, thêm Giai đoạn 4+5 (Shop + Product page), font Jost, chi tiết UX booking |
+| 0.3.0 | 2026-11-09 | notworLe | Antigravity | Hoàn thành Phase 1, 2, 3 (Homepage, Mobile Menu drawer SSENSE, 3 ảnh thực tế, link docs chi tiết 0001-0003) |

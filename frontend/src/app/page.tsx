@@ -1,11 +1,16 @@
 import Hero from "@/components/sections/Hero";
+import About from "@/components/sections/About";
+import Spotlight from "@/components/sections/Spotlight";
+import MetadataBar from "@/components/sections/MetadataBar";
 
 export default function Home() {
   return (
-
-    <main className="min-h-screen flex flex-col justify-center items-center">
+    <main className="min-h-screen bg-brand-background text-brand-foreground">
       <Hero />
-    </ main>
-
+      <About />
+      <Spotlight />
+      <MetadataBar />
+    </main>
   );
 }
+
