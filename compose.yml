@@ -20,3 +20,24 @@ services:
     volumes:
       - ./frontend:/frontend
     command: ["npm", "run", "dev"]
+
+  database:
+    image: postgres:17-alpine
+    container_name: database
+    environment:
+      POSTGRES_USER: notworle
+      POSTGRES_PASSWORD: 123123123
+      POSTGRES_DB: stoe
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql   # tùy chọn
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notworle -d stoe"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
