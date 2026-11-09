@@ -12,6 +12,6 @@ export const STUDIO_INFO = {
   tagline: "Cho thuê áo dài editorial",
   address: "TODO: địa chỉ studio",
   email: "hello@luastudio.vn",
-  instagram: "https://instagram.com/profile.php?id=61586432396347",
-  facebook: "https://www.instagram.com/luastudio.melb",
+  instagram: "https://www.instagram.com/luastudio.melb",
+  facebook: "https://www.facebook.com/profile.php?id=61586432396347",
 } as const;
