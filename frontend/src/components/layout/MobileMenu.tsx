@@ -1,37 +1,42 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronRight, ShoppingBag } from "lucide-react";
 import { FaInstagram } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/context/CartContext";
 
-/**
- * ==============================================================================
- * PROPS (Dữ liệu truyền vào Component)
- * ==============================================================================
- * @param isOpen  - Biến boolean (true/false):
- *                  true  = Menu đang mở và hiển thị trên màn hình.
- *                  false = Menu đang đóng (ẩn đi, không vẽ ra DOM).
- * @param onClose - Hàm callback được gọi khi người dùng muốn đóng menu
- *                  (Ví dụ: khi bấm nút CLOSE, bấm phím Escape, hoặc click vào một link).
- */
-interface MobileMenuProps {
-  isOpen: boolean;
-  onClose: () => void;
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 }
 
 /**
  * ==============================================================================
- * DANH SÁCH 5 ĐƯỜNG DẪN CHÍNH (Đồng bộ chuẩn theo Navbar của LỤA STUDIO)
+ * COMPONENT: MobileMenu (Menu điều hướng trên điện thoại di động)
  * ==============================================================================
- * Sau này nếu bạn muốn THÊM, SỬA, hoặc ĐỔI LINK:
- * Chỉ cần chỉnh sửa trực tiếp danh sách mảng này!
- * - id:         Định danh duy nhất không trùng lặp.
- * - label:      Chữ hiển thị trên màn hình (viết hoa thanh lịch).
- * - href:       Đường dẫn trang web (nội bộ như /about hoặc link ngoài như instagram.com).
- * - isExternal: true nếu là link mở sang trang web khác (ví dụ Instagram).
+ * Hướng dẫn cho người mới học (Newbie Developer):
+ * - Toàn màn hình (Fullscreen drawer) chuẩn SSENSE.
+ * - Sử dụng `createPortal(..., document.body)` để gắn menu trực tiếp vào thẻ body,
+ *   tránh bị ảnh hưởng bởi backdrop-filter blur của Header khiến menu bị co nhỏ trên đầu trang.
+ * - Phủ kín 100% màn hình thiết bị di động (w-screen h-[100dvh]).
+ * - Hỗ trợ nhận diện section (#about, home, product) để highlight đúng mục.
+ * ==============================================================================
  */
+
+interface MobileMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activeSection?: string;
+}
+
 const MOBILE_NAV_ITEMS = [
   {
     id: "home",
@@ -41,9 +46,16 @@ const MOBILE_NAV_ITEMS = [
     description: "Trang chủ LỤA Studio",
   },
   {
+    id: "product",
+    label: "COLLECTION / PRODUCT",
+    href: "/product",
+    isExternal: false,
+    description: "Toàn bộ bộ sưu tập áo dài",
+  },
+  {
     id: "about",
     label: "ABOUT",
-    href: "#about",
+    href: "/#about",
     isExternal: false,
     description: "Giới thiệu câu chuyện studio",
   },
@@ -55,13 +67,6 @@ const MOBILE_NAV_ITEMS = [
     description: "Quy trình thuê & bảng size",
   },
   {
-    id: "portfolio",
-    label: "PORTFOLIO",
-    href: "/portfolio",
-    isExternal: false,
-    description: "Bộ sưu tập ảnh mẫu editorial",
-  },
-  {
     id: "instagram",
     label: "INSTAGRAM",
     href: "https://www.instagram.com/luastudio.melb",
@@ -70,43 +75,28 @@ const MOBILE_NAV_ITEMS = [
   },
 ] as const;
 
-/**
- * Nút hành động nổi bật (Action Link) tương ứng nút GET IN TOUCH bên phải Navbar
- */
-const GET_IN_TOUCH_ACTION = {
-  label: "GET IN TOUCH",
-  href: "/contact",
-  description: "Liên hệ tư vấn & đặt lịch hẹn thuê áo dài",
-};
+export default function MobileMenu({
+  isOpen,
+  onClose,
+  activeSection,
+}: MobileMenuProps) {
+  const pathname = usePathname();
+  const { totalItems, openCart } = useCart();
+  const isMounted = useIsMounted();
 
-/**
- * ==============================================================================
- * COMPONENT CHÍNH: MobileMenu
- * ==============================================================================
- */
-export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
-  /**
-   * TÍNH NĂNG 1: Khóa thanh cuộn trang web khi menu mở
-   * - Khi menu mở (isOpen = true): đặt overflow = 'hidden' trên thẻ <body>
-   *   giúp người dùng không bị cuộn trang web bên dưới khi đang xem menu.
-   * - Khi menu đóng (isOpen = false): trả lại thanh cuộn bình thường.
-   */
+  // Khóa cuộn trang khi menu mở
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
-    // Dọn dẹp (cleanup) khi component unmount
     return () => {
       document.body.style.overflow = "";
     };
   }, [isOpen]);
 
-  /**
-   * TÍNH NĂNG 2: Bấm phím Escape trên bàn phím để đóng menu nhanh
-   * Giúp tăng trải nghiệm người dùng (UX) và chuẩn Accessibility.
-   */
+  // Bấm Escape để đóng menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -117,30 +107,30 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Nếu menu đang đóng thì không vẽ gì ra giao diện (trả về null)
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
-  return (
+  // Xử lý khi bấm nút giỏ hàng trong mobile menu: đóng menu và mở giỏ hàng
+  const handleOpenCartFromMenu = () => {
+    onClose();
+    openCart();
+  };
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Menu điều hướng di động"
       className={cn(
-        // Vị trí cố định (fixed) phủ toàn màn hình thiết bị di động
-        "fixed inset-0 z-[100]",
-        // Màu nền ivory ấm chuẩn nhận diện thương hiệu LỤA Studio
+        "fixed inset-0 z-[100] w-screen h-[100dvh]",
         "bg-brand-background text-brand-foreground",
-        // Bố cục flex cột, cho phép cuộn nếu màn hình quá ngắn
-        "flex flex-col justify-between overflow-y-auto px-6 py-6 md:hidden"
+        "flex flex-col justify-between overflow-y-auto px-6 py-6 animate-in fade-in duration-200"
       )}
     >
       {/* ───────────────────────────────────────────────────────────────
           PHẦN 1: THANH ĐẦU MENU (Top Bar)
-          Bao gồm Logo LỤA Studio bên trái và nút CLOSE bên phải
       ───────────────────────────────────────────────────────────────── */}
       <div>
-        <div className="flex items-center justify-between border-b border-brand-border/40 pb-4 mb-8">
-          {/* Logo nhận diện */}
+        <div className="flex items-center justify-between border-b border-brand-border/40 pb-4 mb-6">
           <Link
             href="/"
             onClick={onClose}
@@ -149,26 +139,27 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             LỤA STUDIO
           </Link>
 
-          {/* Nút bấm ĐÓNG (CLOSE) */}
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng menu điều hướng"
-            className="text-xs uppercase tracking-[0.18em] font-sans text-brand-foreground hover:opacity-60 transition-opacity p-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-ring"
+            className="text-xs uppercase tracking-[0.18em] font-sans text-brand-foreground hover:opacity-60 transition-opacity p-2 cursor-pointer"
           >
             CLOSE
           </button>
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
-            PHẦN 2: 5 ĐƯỜNG DẪN CHÍNH CỦA NAVBAR (HOME, ABOUT, PROCESS, PORTFOLIO, INSTAGRAM)
-            Mỗi đường dẫn có icon chevron '>' giống thiết kế mẫu
+            PHẦN 2: CÁC ĐƯỜNG DẪN CHÍNH
         ─────────────────────────────────────────────────────────────── */}
         <nav aria-label="Menu liên kết chính" className="flex flex-col divide-y divide-brand-border/30">
           {MOBILE_NAV_ITEMS.map((item) => {
             const isInsta = item.id === "instagram";
+            const isActive =
+              (item.id === "home" && pathname === "/" && activeSection === "home") ||
+              (item.id === "about" && pathname === "/" && activeSection === "about") ||
+              (item.id === "product" && pathname.startsWith("/product"));
 
-            // Nếu là link ngoài (Instagram) thì dùng thẻ <a> thông thường
             if (item.isExternal) {
               return (
                 <a
@@ -177,35 +168,31 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onClose}
-                  className="flex items-center justify-between py-4 text-xs font-sans tracking-[0.18em] uppercase text-brand-foreground hover:opacity-60 transition-opacity group"
+                  className="flex items-center justify-between py-4 text-xs font-sans tracking-[0.18em] uppercase text-brand-foreground hover:opacity-60 transition-opacity"
                 >
                   <span className="flex items-center gap-2.5 font-medium">
                     {isInsta && <FaInstagram size={15} aria-hidden="true" />}
                     {item.label}
                   </span>
-                  <ChevronRight
-                    size={15}
-                    className="text-brand-muted group-hover:translate-x-0.5 transition-transform"
-                    aria-hidden="true"
-                  />
+                  <ChevronRight size={15} className="text-brand-muted" />
                 </a>
               );
             }
 
-            // Nếu là link nội bộ (Home, About, Process, Portfolio) thì dùng thẻ <Link> của Next.js
             return (
               <Link
                 key={item.id}
                 href={item.href}
                 onClick={onClose}
-                className="flex items-center justify-between py-4 text-xs font-sans tracking-[0.18em] uppercase text-brand-foreground hover:opacity-60 transition-opacity group"
+                className={cn(
+                  "flex items-center justify-between py-4 text-xs font-sans tracking-[0.18em] uppercase transition-opacity",
+                  isActive
+                    ? "text-brand-foreground font-semibold pl-2 border-l-2 border-brand-foreground"
+                    : "text-brand-foreground/80 hover:text-brand-foreground"
+                )}
               >
-                <span className="font-medium">{item.label}</span>
-                <ChevronRight
-                  size={15}
-                  className="text-brand-muted group-hover:translate-x-0.5 transition-transform"
-                  aria-hidden="true"
-                />
+                <span>{item.label}</span>
+                <ChevronRight size={15} className="text-brand-muted" />
               </Link>
             );
           })}
@@ -213,29 +200,28 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       </div>
 
       {/* ───────────────────────────────────────────────────────────────
-          PHẦN 3: NÚT HÀNH ĐỘNG NỔI BẬT (GET IN TOUCH / GET CONNECT)
-          Được thiết kế nổi bật như một nút bấm lớn phía dưới cùng của menu
+          PHẦN 3: NÚT GIỎ HÀNG NỔI BẬT (SHOPPING BAG)
       ───────────────────────────────────────────────────────────────── */}
-      <div className="pt-8 pb-4 flex flex-col gap-4">
-        {/* Nút GET IN TOUCH nổi bật màu sage đặc trưng */}
-        <Link
-          href={GET_IN_TOUCH_ACTION.href}
-          onClick={onClose}
+      <div className="pt-8 pb-4 flex flex-col gap-3">
+        {/* Nút bấm mở Giỏ hàng trực tiếp từ mobile menu */}
+        <button
+          type="button"
+          onClick={handleOpenCartFromMenu}
           className={cn(
-            "w-full text-center py-3.5 px-6",
+            "w-full py-3.5 px-6 flex items-center justify-center gap-2.5",
             "bg-brand-sage text-brand-foreground font-serif text-xs uppercase tracking-[0.16em] font-medium",
-            "border border-brand-border/60 hover:opacity-85 transition-opacity duration-200",
-            "focus-visible:outline-2 focus-visible:outline-brand-ring"
+            "border border-brand-border/60 hover:opacity-85 transition-opacity cursor-pointer shadow-none"
           )}
         >
-          {GET_IN_TOUCH_ACTION.label}
-        </Link>
+          <ShoppingBag size={15} />
+          <span>SHOPPING BAG ({totalItems})</span>
+        </button>
 
-        {/* Thông tin chân trang nhỏ gọn */}
-        <p className="text-[11px] font-sans tracking-widest uppercase text-brand-muted text-center pt-2">
+        <p className="text-[10px] font-sans tracking-widest uppercase text-brand-muted text-center pt-2">
           Editorial Áo Dài Rental — Melbourne, VIC
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

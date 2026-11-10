@@ -28,6 +28,7 @@ KHÔNG ghi: lựa chọn nhỏ, bấm nút nào, sửa typo, việc git commit �
 - R-01: Việc không thể đảo ngược (xóa file, đổi schema, ghi đè dữ liệu) → hỏi người dùng trước khi làm. (D-001)
 - R-02: Quyết định mới do agent tự đưa ra → ghi vào PROPOSED với `by: agent`, không áp dụng như luật. (D-002)
 - R-03: Khi chuyển/đổi tên file, cập nhật mọi nơi tham chiếu và báo lại danh sách đã sửa. (D-003)
+- R-04: Hủy toàn bộ tiến trình nền (port, server, daemon) sau khi thực hiện xong task. Cần giữ tiến trình xuyên nhiều task/hội thoại → BẮT BUỘC hỏi và báo trước cho người dùng. (D-023)
 
 ## PROPOSED
 
@@ -38,6 +39,12 @@ KHÔNG ghi: lựa chọn nhỏ, bấm nút nào, sửa typo, việc git commit �
 ## HISTORY
 
 > Mới nhất ở trên. Không xóa dòng nào, đổi ý thì chuyển status thành `superseded`.
+
+### D-023 | 2026-11-10 | by: human | status: active
+- Context: Tiến trình nền (Next.js server) chạy ngầm chiếm dụng port 3000 sau khi agent xong task, khiến người dùng không thể chạy dev server.
+- Decision: Bắt buộc agent phải hủy toàn bộ tiến trình nền (server, process con, daemon) ngay sau khi hoàn thành task. Nếu cần giữ tiến trình chạy xuyên nhiều task/hội thoại, BẮT BUỘC phải thông báo cho người dùng biết trước khi giữ.
+- Reason: Tránh xung đột port, chiếm dụng tài nguyên hệ thống và không làm gián đoạn luồng làm việc của người dùng.
+- Supersedes: none
 
 ### D-003 | 2026-11-08 | by: human | status: active
 - Context: Agent chuyển file xong nhưng import cũ bị hỏng
@@ -64,3 +71,10 @@ KHÔNG ghi: lựa chọn nhỏ, bấm nút nào, sửa typo, việc git commit �
 - Decision: (quyết định, một câu cụ thể)
 - Reason: (vì sao, để biết khi nào được phá luật)
 - Supersedes: D-yyy hoặc none
+
+
+## Cấu trúc ghi log (Bộ nhớ dự án)
+
+- [`log/DECISION_LOG.md`](../../log/DECISION_LOG.md): Ghi các quyết định kỹ thuật / kiến trúc (mã `D-xxx`) có tính ràng buộc hoặc khó đảo ngược.
+- [`log/AI_THINKING.md`](../../log/AI_THINKING.md): Ghi luồng suy nghĩ, bản đồ tư duy (Mental Model), các bẫy ngầm kỹ thuật và hướng dẫn bàn giao ngữ cảnh cho AI Agent kế nhiệm.
+- [`log/ERROR.md`](../../log/ERROR.md): Ghi nhận sự cố kỹ thuật nghiêm trọng và cách giải quyết triệt để.
