@@ -28,7 +28,9 @@ Thư mục này lưu lại **bộ nhớ dự án** — các quyết định và 
 
 | File | Mô tả | Ai ghi |
 | :--- | :--- | :--- |
-| [`DECISION_LOG.md`](DECISION_LOG.md) | Quyết định kỹ thuật, kiến trúc, quy ước — những thứ ràng buộc tương lai | Human + Agent |
+| [`AI_THINKING.md`](AI_THINKING.md) | **Mental Model & Handoff**: Luồng suy nghĩ của AI, bẫy ngầm kỹ thuật, bài học và ngữ cảnh bàn giao cho AI Agent kế nhiệm | AI Agent |
+| [`DECISION_LOG.md`](DECISION_LOG.md) | **Quyết định kỹ thuật (ADR)**: Kiến trúc, thư viện, quy ước (D-xxx) có giá trị ràng buộc | Human + Agent |
+| [`ERROR.md`](ERROR.md) | **Sự cố & Bài học sửa lỗi**: Ghi lại các lỗi build/runtime nghiêm trọng và cách giải quyết triệt để | AI Agent |
 
 ---
 
@@ -50,4 +52,5 @@ Xem chi tiết tại [`.agents/rule/LOG.md`](../.agents/rule/LOG.md). Tóm tắt
 
 | Version | Ngày | Người sửa | Agent | Mô tả thay đổi |
 | :--- | :--- | :--- | :--- | :--- |
+| 0.2.0 | 2026-11-10 | notworLe | Antigravity | Bổ sung AI_THINKING.md (luồng tư duy bàn giao) và ERROR.md (nhật ký sự cố) vào bảng danh mục |
 | 0.1.0 | 2026-11-08 | notworLe | Antigravity | Khởi tạo README mô tả thư mục log |

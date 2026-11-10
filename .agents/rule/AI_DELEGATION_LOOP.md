@@ -56,6 +56,7 @@ Kỹ sư luôn ghi rõ mức tự chủ trong Delegation Brief. Không ghi = L2.
 - Bất kỳ thứ gì liên quan secrets, `.env` thật, key production.
 - Chạy migration trên database không phải local/dev.
 - Thêm dependency mới vào `pyproject.toml` / `package.json` (phải xin phép, nêu lý do).
+- Tự ý duy trì tiến trình chạy nền (port, server, daemon) xuyên nhiều task/hội thoại mà không báo trước cho Kỹ sư.
 
 ### 2.4. Điều kiện Dừng (Stop Conditions)
 Agent PHẢI dừng và hỏi lại khi:
@@ -230,6 +231,7 @@ Một commit = một layer = một mục đích. Thay đổi cross-layer tách t
 7. Client tự định nghĩa lại kiểu API thay vì dùng type sinh từ OpenAPI.
 8. `try-except pass`, hoặc sửa test/xóa test để qua mặt lỗi.
 9. Đánh dấu Done khi chưa chạy test thật.
+10. Để sót tiến trình nền (port, dev server, background process) chạy ngầm sau khi làm xong task mà không xin phép người dùng.
 
 ---
 

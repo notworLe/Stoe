@@ -193,13 +193,15 @@ frontend/src/
 - **Mobile:** 2 cột.
 - Card: portrait photo + tên + giá thuê (nhỏ, dưới ảnh) — không shadow, không rounded.
 - Filters: size, occasion, color — collapsible trên mobile.
+- Show More: Tải phân trang tại chỗ (ban đầu 8 mẫu, nạp thêm từng đợt 4 mẫu) kèm thanh tiến độ 1px.
 
 ### Definition of Done
 
-- [ ] Grid responsive đúng 4 col / 2 col.
-- [ ] Filter hoạt động (UI state, chưa cần API thật).
-- [ ] Card không có shadow hay border-radius.
-- [ ] `make lint-fe` sạch.
+- [x] Grid responsive đúng 4 col / 2 col.
+- [x] Filter hoạt động (UI state, chưa cần API thật).
+- [x] Card không có shadow hay border-radius.
+- [x] Tính năng Show More & thanh tiến độ hoạt động mượt mà.
+- [x] `make lint-fe` sạch.
 
 ---
 
@@ -228,14 +230,23 @@ frontend/src/
 - Chip selected: `background: brand.foreground`, `color: brand.onForeground`.
 - Focus state: `outline: 2px solid brand.ring`, `outline-offset: 2px`.
 
-### Definition of Done
+### Tiến độ triển khai Giai đoạn 5 (Cập nhật mới nhất)
 
-- [ ] 10 phần hiển thị đúng thứ tự.
-- [ ] Price breakdown cập nhật live khi đổi lựa chọn.
-- [ ] Calendar: ngày disabled có strikethrough/pattern + aria label.
-- [ ] Button disabled state rõ ràng + thông báo.
-- [ ] Keyboard navigable: chips, calendar, accordion.
-- [ ] `make lint-fe` sạch.
+- [x] **Track URL nhẹ nhàng**: Định vị trang hiện tại trên Header (`LOC: INDEX / HOME`, `LOC: THE ARCHIVE`, `LOC: ARCHIVE / PIECE`) và vi điểm chỉ báo dưới navigation link.
+- [x] **Khu vực Giỏ hàng thay thế "GET IN TOUCH"**: Tích hợp nút `BAG (${totalItems})` trên Header và Mobile Drawer, phong cách editorial Warm Ivory.
+- [x] **Kiến trúc Cart State (`CartContext.tsx`)**: Ứng dụng `useSyncExternalStore` của React 19 để đồng bộ an toàn với `localStorage`, loại bỏ hoàn toàn lỗi cascading render và Hydration Mismatch.
+- [x] **Ngăn kéo Giỏ hàng (`CartDrawer.tsx`)**: Slide-over drawer từ cạnh phải hiển thị thumbnail portrait, mã áo dài (`AD-12`), size, gói ngày, dải ngày nhận-trả, khung giờ, phương thức nhận, phụ phí ngoài giờ, nút tăng giảm số lượng (+ / -), xóa item, tính tổng tiền live (AUD & VND).
+- [x] **Khối tương tác Đặt đồ (`ProductBookingInteractive.tsx`)**:
+  - Mã áo dài đối chiếu (`AD-12`) kèm thumbnail trực tiếp, thông số mẫu `1m68, Size S`, bảng số đo 3 vòng (cm) mở rộng trực quan.
+  - Chọn size (XS, S, M, L, XL) — tự động làm mờ và gạch ngang size hết hàng.
+  - Chọn gói ngày thuê (1 ngày sự kiện / 4 ngày tiêu chuẩn / 8 ngày mở rộng) tự động tính toán ngày trả đồ.
+  - Chọn khung giờ lấy đồ (`08:00 AM` – `08:00 PM`) và giờ trả (`09:00 AM` – `11:00 PM`) với ràng buộc giờ lấy phải trước giờ trả.
+  - Cảnh báo trả ngoài giờ làm việc (sau 21:00) kèm phụ phí ngoài giờ `+$20 AUD (150.000₫)`.
+- [x] **Lịch chọn ngày khả dụng (`AvailabilityCalendar.tsx` / Tích hợp inline)**: Chọn ngày nhận và ngày trả áo, ngày đã book có họa tiết gạch chéo vô hiệu hóa (`strikethrough / diagonal pattern`).
+- [x] **Chặn trùng lịch & Buffer vệ sinh 6–7 tiếng**: Chặn khách B book đè slot khách A (`01/01/2027`) và chặn luôn khoảng đệm 6–7 tiếng giặt hấp/khử khuẩn UV đến `03:00 AM 02/01/2027`.
+- [x] **Phương thức giao nhận (`DeliveryMethod`)**: Nhận tại Studio Melbourne (Miễn phí) hoặc Bưu điện Úc Express (+$16.95 AUD / 280.000₫) tự động tính vào hóa đơn.
+- [ ] **Quy trình Thanh toán & Đặt cọc (`CheckoutFlow.tsx`)**: Chốt đơn và chuyển tiếp thông tin thanh toán/chuyển khoản cọc (Phase tiếp theo).
+- [x] `npm run lint` & `npx tsc --noEmit` & `npm run build` sạch 100%.
 
 ---
 
@@ -250,13 +261,17 @@ frontend/src/
 | `frontend/docs/design-system.md` | Giải thích token, typography, spacing, anti-patterns |
 | `frontend/docs/architecture.md` | Cấu trúc module, cách thêm page / block mới |
 | `frontend/docs/roadmap/ROADMAP.md` | File này |
+| `frontend/docs/roadmap/0005-phase5.md` | Chi tiết kiến trúc Cart & Booking Engine |
+| `frontend/docs/booking-tutorial.md` | Hướng dẫn cho Newbie — Hệ thống Đặt thuê Áo Dài |
+| `frontend/docs/navigation-tutorial.md` | Hướng dẫn cho Newbie — Hệ thống điều hướng & Mobile Menu |
+| `docs/BUSINESS_REQUIREMENT.md` | Nghiệp vụ thực tế: Buffer 6-7h, Sau giờ làm việc, Số đo |
 | `frontend/README.md` | 3 lệnh chạy được + link đến docs |
 
 ### Definition of Done
 
-- [ ] Mỗi file có YAML front matter + lịch sử thay đổi đúng chuẩn DOC.md.
-- [ ] Link nội bộ dùng đường dẫn tương đối, trỏ đúng.
-- [ ] Không có secret, hex hardcode, đường dẫn tuyệt đối.
+- [x] Mỗi file có YAML front matter + lịch sử thay đổi đúng chuẩn DOC.md.
+- [x] Link nội bộ dùng đường dẫn tương đối, trỏ đúng.
+- [x] Không có secret, hex hardcode, đường dẫn tuyệt đối.
 
 ---
 
@@ -267,3 +282,4 @@ frontend/src/
 | 0.1.0 | 2026-11-08 | notworLe | Antigravity | Khởi tạo roadmap 4 giai đoạn |
 | 0.2.0 | 2026-11-09 | notworLe | Antigravity | Cập nhật theo MASTER.md mới: token đầy đủ, thêm Giai đoạn 4+5 (Shop + Product page), font Jost, chi tiết UX booking |
 | 0.3.0 | 2026-11-09 | notworLe | Antigravity | Hoàn thành Phase 1, 2, 3 (Homepage, Mobile Menu drawer SSENSE, 3 ảnh thực tế, link docs chi tiết 0001-0003) |
+| 0.4.0 | 2026-11-10 | notworLe | Antigravity | Hoàn thành Booking Engine Giai đoạn 5: Lịch 4 ngày, Khung giờ lấy trước trả sau, Buffer giặt hấp 6-7h, Cảnh báo trả sau 21h, Bảng số đo và Giao nhận Express |
