@@ -9,16 +9,16 @@ interface SizeSelectorProps {
   onChange: (size: string) => void;
 }
 
-/**
- * SizeSelector — chip group + link Size Guide + bảng số đo.
- * Chi tiết build ở Phase 5.
- */
-export default function SizeSelector({ sizes, selected, onChange }: SizeSelectorProps) {
+export default function SizeSelector({
+  sizes,
+  selected,
+  onChange,
+}: SizeSelectorProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-xs font-sans uppercase tracking-widest text-brand-foreground">
-          Chọn size
+          Choose Size
         </p>
         <a
           href="/size-guide"
@@ -28,7 +28,6 @@ export default function SizeSelector({ sizes, selected, onChange }: SizeSelector
         </a>
       </div>
 
-      {/* Size chips */}
       <div className="flex flex-wrap gap-2">
         {sizes.map((size) => (
           <Chip
@@ -41,11 +40,6 @@ export default function SizeSelector({ sizes, selected, onChange }: SizeSelector
           </Chip>
         ))}
       </div>
-
-      {/* Measurements table — Phase 5 */}
-      <p className="text-xs font-sans text-brand-muted">
-        Bảng số đo chi tiết sẽ hiển thị ở đây.
-      </p>
     </div>
   );
 }

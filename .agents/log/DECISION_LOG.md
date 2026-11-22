@@ -7,9 +7,9 @@ author: notworLe
 ai_assisted: true
 ai_agent: Antigravity
 created: 2026-11-08
-updated: 2026-11-10
+updated: 2026-11-22
 last_updated_by: Antigravity
-version: 0.1.0
+version: 0.3.0
 status: draft
 reviewers: []
 related_docs:
@@ -54,6 +54,15 @@ tags: [log, decision, governance]
 ## PROPOSED
 
 > Chờ người dùng duyệt. Agent ghi vào đây theo đúng mẫu.
+
+### D-026 | 2026-11-22 | by: human-instructed | status: proposed
+- Context: Chuyển đổi nền tảng từ bản mock frontend tiếng Việt (LUA Studio, VND/AUD) sang ứng dụng fullstack tiếng Anh hoàn chỉnh cho thương hiệu **Maison de Lua** (`maisondelua`, logo `/images/image.png`), định giá duy nhất bằng AUD, áp dụng ràng buộc gói thuê theo hình thức giao nhận và giãn cách 1 ngày cùng loại áo, kèm cổng quản trị Admin đầy đủ (Backend FastAPI + PostgreSQL & Frontend Next.js).
+- Decision:
+  1. Thiết kế Backend FastAPI + SQLAlchemy 2.0 + PostgreSQL (`site_settings`, `admin_users`, `garments`, `bookings`, `transactions`) kèm xác thực Admin (PBKDF2 + HMAC-SHA256 Bearer token), upload media `/uploads`, và dịch vụ sinh/gửi hóa đơn Email AUD (`SMTP` khi cấu hình hoặc `simulated_sent` lưu HTML hóa đơn).
+  2. Thực thi luật nghiệp vụ thống nhất ở cả Backend và Frontend: 2 hình thức giao nhận `pick_in_person` (chọn đủ gói 1, 2, 4, 8 ngày) và `transport_post` (chỉ chọn gói 4, 8 ngày); ràng buộc giãn cách tối thiểu **1 ngày** (`turnaround_gap_days=1`) cho cùng một mã áo giữa hai booking không bị hủy.
+  3. Toàn bộ giao diện Storefront (`/`, `/product`, `/product/[slug]`, `/size-guide`, `/checkout`) và Admin Console (`/admin`) sử dụng 100% tiếng Anh, đơn vị tiền tệ duy nhất AUD, dữ liệu thương hiệu/nội dung đọc động từ `SiteSettingsContext` để Admin chỉnh sửa trực tiếp.
+- Reason: Đáp ứng đúng sơ đồ luồng Guest Booking & Admin Use Case của người dùng, giữ nguyên stack PostgreSQL · FastAPI · Next.js + Tailwind theo R-04, và đảm bảo CI (`ruff`, `pytest`, `eslint`, `tsc`, `next build`) chạy độc lập không phụ thuộc dịch vụ ngoài.
+- Supersedes: none
 
 ### D-024 | 2026-11-10 | by: human-instructed | status: proposed
 - Context: Bản chất toàn bộ website LUA Studio đã là một boutique shop cho thuê áo dài, việc tạo thêm tiền tố /shop gây trùng lặp và không cần thiết so với /product.
@@ -235,5 +244,6 @@ tags: [log, decision, governance]
 
 | Version | Ngày | Người sửa | Agent | Mô tả thay đổi |
 | :--- | :--- | :--- | :--- | :--- |
+| 0.3.0 | 2026-11-22 | notworLe | Antigravity | Thêm đề xuất D-026 cho fullstack Maison de Lua (English, AUD, Pick in Person/Transport Post, 1-day gap, Admin Console) |
 | 0.2.0 | 2026-11-10 | notworLe | Antigravity | Bổ sung luật R-09 (D-023: Bắt buộc hủy tiến trình sau khi xong task, báo trước nếu muốn giữ) |
 | 0.1.0 | 2026-11-08 | notworLe | Antigravity | Khởi tạo — log lại 8 quyết định từ phiên đầu |

@@ -1,0 +1,40 @@
+# Render Blueprint — Maison de Lua Backend ONLY (Docker)
+# Frontend deploys separately on Vercel (Root Directory: frontend).
+# Database & Media Storage run on Supabase (Region: Sydney ap-southeast-2).
+
+services:
+  - type: web
+    name: maison-de-lua-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@maisondelua.com.au
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: maison-de-lua-media
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        value: hello@maisondelua.com.au

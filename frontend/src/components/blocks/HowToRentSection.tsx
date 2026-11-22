@@ -4,30 +4,29 @@ import Divider from "@/components/ui/Divider";
 const STEPS = [
   {
     number: "01",
-    title: "Chọn áo dài",
-    description: "Duyệt bộ sưu tập, chọn size và thời gian thuê phù hợp.",
+    title: "Select Your Ao Dai",
+    description:
+      "Browse our archive, review exact measurements in cm, and pick your size.",
   },
   {
     number: "02",
-    title: "Đặt lịch",
-    description: "Chọn ngày nhận và ngày trả. Phí giao hàng hiển thị rõ trước khi thanh toán.",
+    title: "Choose Delivery & Time",
+    description:
+      "Pick in Person (1, 2, 4 or 8 days) or Transport Post (4 or 8 days) with a 1-day garment care gap.",
   },
   {
     number: "03",
-    title: "Nhận & Trả",
-    description: "Nhận tại studio hoặc giao tận nơi. Trả lại theo đúng lịch đã chọn.",
+    title: "Checkout & Receive Invoice",
+    description:
+      "Complete guest payment in AUD and receive your confirmation invoice by email.",
   },
 ];
 
-/**
- * HowToRentSection — 3 bước đánh số theo MASTER.md.
- * Icons: số thứ tự thay vì SVG icon (phong cách editorial minimalism).
- */
 export default function HowToRentSection() {
   return (
     <Section className="bg-brand-card">
       <h2 className="font-serif text-brand-foreground text-2xl uppercase tracking-widest text-center mb-16">
-        Cách thuê áo dài
+        How to Rent
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">

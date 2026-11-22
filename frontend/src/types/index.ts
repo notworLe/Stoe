@@ -1,104 +1,232 @@
-/** Một sản phẩm áo dài */
-export interface Product {
-  id: string;
-  code?: string;             // Mã áo dài đối chiếu (vd: "AD-12", "AD-08")
-  slug: string;
-  name: string;
-  images: string[];          // URL ảnh, index 0 = ảnh chính
-  rentalPricePerDay: number; // VND
-  rentalPriceAud?: number;   // Giá thuê niêm yết tại Melbourne (AUD) cho gói tiêu chuẩn 4 ngày
-  sizes: Size[];
-  occasion?: string;         // "Wedding" | "Editorial" | "Tea Ceremony" | "Event"
-  color?: string;            // "Ivory" | "Sage" | "Terracotta" | "Rose"
-  description?: string;      // Mô tả phom dáng, chất liệu lụa
-  modelInfo?: {
-    height: string;          // vd: "1m68"
-    wearingSize: string;     // vd: "Size S"
-  };
-}
+/** Delivery methods supported by Maison de Lua */
+export type DeliveryMethod = "pick_in_person" | "transport_post";
 
-/** Trạng thái bộ lọc sản phẩm cho trang Shop / Collection */
-export interface ProductFilters {
-  occasion: string;          // Dịp mặc: "all" | "Wedding" | "Editorial" | "Tea Ceremony" | "Event"
-  size: string;              // Size: "all" | "XS" | "S" | "M" | "L" | "XL"
-  color: string;             // Màu sắc: "all" | "Ivory" | "Sage" | "Terracotta" | "Rose"
-  sortBy: "featured" | "price-asc" | "price-desc"; // Tiêu chí sắp xếp
-}
+/** Rental time packages in days */
+export type RentalDays = 1 | 2 | 4 | 8;
 
-/** Size áo dài kèm số đo chuẩn cm */
+/** Payment methods for guest checkout (AUD) */
+export type PaymentMethod = "card" | "bank_transfer" | "studio_pay";
+
+/** Booking status lifecycle */
+export type BookingStatus = "pending" | "confirmed" | "active" | "returned" | "cancelled";
+
+/** Transaction payment status */
+export type TransactionStatus = "paid" | "pending" | "refunded" | "failed";
+
+/** Standard size specification with garment measurements in cm */
 export interface Size {
-  label: string;             // "XS" | "S" | "M" | "L" | "XL"
-  bust: number;              // cm (vòng ngực)
-  waist: number;             // cm (vòng eo)
-  hip: number;               // cm (vòng mông)
-  length?: number;           // cm (chiều dài áo dài từ cổ xuống gấu)
+  label: string; // "XS" | "S" | "M" | "L" | "XL"
+  bust: number; // cm
+  waist: number; // cm
+  hip: number; // cm
+  length: number; // cm
   available: boolean;
 }
 
-/** Tuỳ chọn thời gian thuê */
-export interface RentalOption {
-  days: number;              // 4 | 8
-  label: string;             // "4 ngày" | "8 ngày"
-  priceMultiplier: number;   // 1 | 1.75
-}
-
-/** Phương thức giao nhận */
-export type DeliveryMethod = "pickup" | "post" | "postal";
-
-/** Chi tiết lịch đặt thuê áo dài của khách */
-export interface BookingDetails {
-  startDate: string;         // Ngày lấy (YYYY-MM-DD)
-  endDate: string;           // Ngày trả tự động tính (YYYY-MM-DD)
-  pickupTime: string;        // Khung giờ lấy (vd: "08:00 AM")
-  returnTime: string;        // Khung giờ trả (vd: "08:00 PM")
-  isAfterHoursReturn: boolean; // Trả sau 21:00 (giờ làm việc ngưng)
-  afterHoursFeeAud: number;  // Phụ phí ngoài giờ AUD (nếu có, vd: 20)
-  afterHoursFeeVnd: number;  // Phụ phí ngoài giờ VND (nếu có, vd: 150000)
-  deliveryMethod: DeliveryMethod; // "pickup" (Studio) | "post" (Bưu điện Úc)
-  deliveryFeeAud: number;    // Phí bưu điện AUD (vd: 16.95 hoặc 0)
-  deliveryFeeVnd: number;    // Phí bưu điện VND (vd: 280000 hoặc 0)
-}
-
-/** Lịch đặt trước đã có của khách khác (để test chặn trùng lịch và buffer 6-7h) */
-export interface ExistingBooking {
+/** Unique Ao Dai garment in the archive */
+export interface Product {
   id: string;
-  productId: string;
-  productCode: string;
-  customerName: string;      // "Bạn A"
-  startDate: string;         // YYYY-MM-DD
-  endDate: string;           // YYYY-MM-DD
-  pickupTime: string;        // "08:00 AM"
-  returnTime: string;        // "08:00 PM"
-  cleaningBufferHours: number; // 6-7 tiếng giặt hấp & khử khuẩn
-  bufferEndTime: string;     // Khung giờ hoàn tất khử khuẩn
+  code: string; // e.g., "AD-12"
+  slug: string;
+  name: string;
+  images: string[];
+  rentalPriceAud: number; // Base 4-day rate in AUD
+  sizes: Size[];
+  occasion: string; // "Wedding" | "Tea Ceremony" | "Editorial" | "Event"
+  color: string; // "Ivory" | "Sage" | "Terracotta" | "Rose"
+  description: string;
+  modelInfo?: {
+    height: string; // e.g., "168 cm"
+    wearingSize: string; // e.g., "Size S"
+  };
+  isActive?: boolean;
 }
 
-/** Thông tin đặt thuê cơ bản */
-export interface BookingState {
-  productId: string;
-  selectedSize: string | null;
-  rentalDays: number | null;
-  deliveryMethod: DeliveryMethod | null;
-  deliveryDate: Date | null;
-  returnDate: Date | null;
+/** Filter state for /product archive */
+export interface ProductFilters {
+  occasion: string;
+  size: string;
+  color: string;
+  sortBy: "featured" | "price-asc" | "price-desc";
 }
 
-/** Breakdown giá trước checkout */
+/** MetadataBar item editable from Admin */
+export interface MetadataBarItem {
+  label: string;
+  value: string;
+  subtitle?: string | null;
+}
+
+/** Editable website configuration persisted in Backend PostgreSQL */
+export interface SiteSettings {
+  id: number;
+  siteName: string;
+  siteHandle: string;
+  tagline: string;
+  logoUrl: string;
+  currency: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroQuote: string;
+  heroImageUrl: string;
+  aboutTitle: string;
+  aboutParagraphs: string[];
+  aboutImageUrl: string;
+  spotlightQuote: string;
+  spotlightImageUrl: string;
+  metadataItems: MetadataBarItem[];
+  studioAddress: string;
+  contactEmail: string;
+  contactPhone: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  bankAccountName: string;
+  bankBsb: string;
+  bankAccountNumber: string;
+  payidEmail: string;
+  transportPostFeeAud: number;
+  afterHoursFeeAud: number;
+  turnaroundGapDays: number;
+  businessOpenTime: string;
+  businessCloseTime: string;
+}
+
+/** Existing booking range returned by garment availability endpoint */
+export interface BookedRange {
+  bookingRef: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  gapBeforeDate: string;
+  gapAfterDate: string;
+  deliveryMethod: DeliveryMethod;
+  rentalDays: number;
+  status: string;
+}
+
+export interface GarmentAvailability {
+  garmentId: string;
+  garmentCode: string;
+  turnaroundGapDays: number;
+  bookings: BookedRange[];
+  bookedDates: string[];
+  gapDates: string[];
+}
+
+/** Selected booking schedule details stored inside CartItem */
+export interface BookingDetails {
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  pickupTime: string; // e.g., "09:00 AM"
+  returnTime: string; // e.g., "06:00 PM"
+  isAfterHoursReturn: boolean;
+  afterHoursFeeAud: number;
+  deliveryMethod: DeliveryMethod;
+  deliveryFeeAud: number;
+  rentalFeeAud: number;
+}
+
+/** Shopping bag item (AUD only) */
+export interface CartItem {
+  id: string;
+  product: Product;
+  size: string;
+  rentalDays: RentalDays;
+  quantity: number;
+  rentalFeeAud: number;
+  deliveryFeeAud: number;
+  afterHoursFeeAud: number;
+  pricePerItemAud: number;
+  bookingDetails: BookingDetails;
+}
+
+/** Backend Booking record */
+export interface BookingRecord {
+  id: number;
+  bookingRef: string;
+  garmentId: string;
+  garmentCode: string;
+  garmentName: string;
+  sizeLabel: string;
+  deliveryMethod: DeliveryMethod;
+  rentalDays: number;
+  startDate: string;
+  endDate: string;
+  gapUntilDate: string;
+  pickupTime: string;
+  returnTime: string;
+  isAfterHours: boolean;
+  rentalFeeAud: number;
+  deliveryFeeAud: number;
+  afterHoursFeeAud: number;
+  totalAud: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string | null;
+  notes: string | null;
+  status: BookingStatus;
+  invoiceNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Backend Transaction & Invoice record */
+export interface TransactionRecord {
+  id: number;
+  transactionRef: string;
+  invoiceNumber: string;
+  bookingRefs: string[];
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  paymentMethod: PaymentMethod;
+  cardLast4: string | null;
+  subtotalAud: number;
+  deliveryFeeAud: number;
+  afterHoursFeeAud: number;
+  totalAud: number;
+  currency: string;
+  status: TransactionStatus;
+  invoiceEmailStatus: string;
+  invoiceEmailError: string | null;
+  invoiceEmailHtml: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CheckoutReceipt {
+  transaction: TransactionRecord;
+  bookings: BookingRecord[];
+  message: string;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
+export interface AdminOverview {
+  paidRevenueAud: number;
+  pendingRevenueAud: number;
+  totalBookings: number;
+  activeBookings: number;
+  totalGarments: number;
+  activeGarments: number;
+  totalTransactions: number;
+  currency: string;
+}
+
+export interface RentalOption {
+  days: RentalDays;
+  label: string;
+  priceMultiplier: number;
+}
+
 export interface PriceBreakdown {
   rentalFee: number;
   deliveryFee: number;
   afterHoursFee: number;
   total: number;
-}
-
-/** Một món đồ trong giỏ hàng đặt thuê áo dài */
-export interface CartItem {
-  id: string;               // Mã định danh giỏ hàng
-  product: Product;         // Thông tin sản phẩm
-  size: string;             // Size khách chọn: "XS" | "S" | "M" | "L" | "XL"
-  rentalDays: number;       // Thời gian thuê: 4 hoặc 8 ngày
-  quantity: number;         // Số lượng
-  pricePerItemAud: number;  // Giá thuê AUD cho gói ngày đã chọn
-  pricePerItemVnd: number;  // Giá thuê VND cho gói ngày đã chọn
-  bookingDetails?: BookingDetails; // Chi tiết ngày giờ nhận/trả & phương thức nhận
 }

@@ -8,6 +8,7 @@ import { ChevronRight, ShoppingBag } from "lucide-react";
 import { FaInstagram } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const emptySubscribe = () => () => {};
 function useIsMounted() {
@@ -18,62 +19,11 @@ function useIsMounted() {
   );
 }
 
-/**
- * ==============================================================================
- * COMPONENT: MobileMenu (Menu điều hướng trên điện thoại di động)
- * ==============================================================================
- * Hướng dẫn cho người mới học (Newbie Developer):
- * - Toàn màn hình (Fullscreen drawer) chuẩn SSENSE.
- * - Sử dụng `createPortal(..., document.body)` để gắn menu trực tiếp vào thẻ body,
- *   tránh bị ảnh hưởng bởi backdrop-filter blur của Header khiến menu bị co nhỏ trên đầu trang.
- * - Phủ kín 100% màn hình thiết bị di động (w-screen h-[100dvh]).
- * - Hỗ trợ nhận diện section (#about, home, product) để highlight đúng mục.
- * ==============================================================================
- */
-
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   activeSection?: string;
 }
-
-const MOBILE_NAV_ITEMS = [
-  {
-    id: "home",
-    label: "HOME",
-    href: "/",
-    isExternal: false,
-    description: "Trang chủ LỤA Studio",
-  },
-  {
-    id: "product",
-    label: "COLLECTION / PRODUCT",
-    href: "/product",
-    isExternal: false,
-    description: "Toàn bộ bộ sưu tập áo dài",
-  },
-  {
-    id: "about",
-    label: "ABOUT",
-    href: "/#about",
-    isExternal: false,
-    description: "Giới thiệu câu chuyện studio",
-  },
-  {
-    id: "process",
-    label: "PROCESS",
-    href: "/size-guide",
-    isExternal: false,
-    description: "Quy trình thuê & bảng size",
-  },
-  {
-    id: "instagram",
-    label: "INSTAGRAM",
-    href: "https://www.instagram.com/luastudio.melb",
-    isExternal: true,
-    description: "Kênh Instagram chính thức",
-  },
-] as const;
 
 export default function MobileMenu({
   isOpen,
@@ -82,9 +32,9 @@ export default function MobileMenu({
 }: MobileMenuProps) {
   const pathname = usePathname();
   const { totalItems, openCart } = useCart();
+  const { settings } = useSiteSettings();
   const isMounted = useIsMounted();
 
-  // Khóa cuộn trang khi menu mở
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -96,7 +46,6 @@ export default function MobileMenu({
     };
   }, [isOpen]);
 
-  // Bấm Escape để đóng menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -109,7 +58,15 @@ export default function MobileMenu({
 
   if (!isOpen || !isMounted) return null;
 
-  // Xử lý khi bấm nút giỏ hàng trong mobile menu: đóng menu và mở giỏ hàng
+  const navItems = [
+    { id: "home", label: "HOME", href: "/", isExternal: false },
+    { id: "product", label: "THE ARCHIVE", href: "/product", isExternal: false },
+    { id: "about", label: "ABOUT", href: "/#about", isExternal: false },
+    { id: "process", label: "PROCESS & SIZE GUIDE", href: "/size-guide", isExternal: false },
+    { id: "checkout", label: "CHECKOUT", href: "/checkout", isExternal: false },
+    { id: "instagram", label: "INSTAGRAM", href: settings.instagramUrl, isExternal: true },
+  ];
+
   const handleOpenCartFromMenu = () => {
     onClose();
     openCart();
@@ -119,46 +76,47 @@ export default function MobileMenu({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Menu điều hướng di động"
+      aria-label="Mobile navigation menu"
       className={cn(
         "fixed inset-0 z-[100] w-screen h-[100dvh]",
         "bg-brand-background text-brand-foreground",
-        "flex flex-col justify-between overflow-y-auto px-6 py-6 animate-in fade-in duration-200"
+        "flex flex-col justify-between overflow-y-auto px-6 py-6"
       )}
     >
-      {/* ───────────────────────────────────────────────────────────────
-          PHẦN 1: THANH ĐẦU MENU (Top Bar)
-      ───────────────────────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between border-b border-brand-border/40 pb-4 mb-6">
           <Link
             href="/"
             onClick={onClose}
-            className="font-serif text-sm uppercase tracking-[0.2em] text-brand-foreground hover:opacity-70 transition-opacity"
+            className="inline-flex items-center gap-2 font-serif text-sm uppercase tracking-[0.2em] text-brand-foreground hover:opacity-70 transition-opacity"
           >
-            LỤA STUDIO
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={settings.logoUrl}
+              alt={settings.siteName}
+              className="h-7 w-7 object-contain mix-blend-multiply"
+            />
+            <span>{settings.siteName}</span>
           </Link>
 
           <button
             type="button"
             onClick={onClose}
-            aria-label="Đóng menu điều hướng"
+            aria-label="Close navigation menu"
             className="text-xs uppercase tracking-[0.18em] font-sans text-brand-foreground hover:opacity-60 transition-opacity p-2 cursor-pointer"
           >
             CLOSE
           </button>
         </div>
 
-        {/* ─────────────────────────────────────────────────────────────
-            PHẦN 2: CÁC ĐƯỜNG DẪN CHÍNH
-        ─────────────────────────────────────────────────────────────── */}
-        <nav aria-label="Menu liên kết chính" className="flex flex-col divide-y divide-brand-border/30">
-          {MOBILE_NAV_ITEMS.map((item) => {
+        <nav aria-label="Primary mobile links" className="flex flex-col divide-y divide-brand-border/30">
+          {navItems.map((item) => {
             const isInsta = item.id === "instagram";
             const isActive =
               (item.id === "home" && pathname === "/" && activeSection === "home") ||
               (item.id === "about" && pathname === "/" && activeSection === "about") ||
-              (item.id === "product" && pathname.startsWith("/product"));
+              (item.id === "product" && pathname.startsWith("/product")) ||
+              (item.id === "process" && pathname.startsWith("/size-guide"));
 
             if (item.isExternal) {
               return (
@@ -199,11 +157,7 @@ export default function MobileMenu({
         </nav>
       </div>
 
-      {/* ───────────────────────────────────────────────────────────────
-          PHẦN 3: NÚT GIỎ HÀNG NỔI BẬT (SHOPPING BAG)
-      ───────────────────────────────────────────────────────────────── */}
       <div className="pt-8 pb-4 flex flex-col gap-3">
-        {/* Nút bấm mở Giỏ hàng trực tiếp từ mobile menu */}
         <button
           type="button"
           onClick={handleOpenCartFromMenu}
@@ -218,7 +172,7 @@ export default function MobileMenu({
         </button>
 
         <p className="text-[10px] font-sans tracking-widest uppercase text-brand-muted text-center pt-2">
-          Editorial Áo Dài Rental — Melbourne, VIC
+          {settings.siteName} · Melbourne, Australia ({settings.currency})
         </p>
       </div>
     </div>,
