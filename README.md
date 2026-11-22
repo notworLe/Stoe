@@ -66,6 +66,9 @@ Default seeded login: `admin@maisondelua.com.au` / `admin123` (configurable via 
 - Admin Console: `http://localhost:3000/admin` (`admin@maisondelua.com.au` / `admin123`)
 - Backend API & Swagger Docs: `http://localhost:8000/docs`
 
+### Optional: Production Deployment (Render Docker Backend + Vercel Frontend + Supabase)
+- Full setup guide (Supabase PostgreSQL Session Pooler, Supabase Storage CDN, Render Blueprint [`render.yaml`](render.yaml), and Vercel Frontend): see [`docs/DEPLOY_RENDER_SUPABASE.md`](docs/DEPLOY_RENDER_SUPABASE.md).
+
 ### Optional: Docker Compose (Frontend + Backend + PostgreSQL 17)
 ```bash
 cp .env.example .env
@@ -90,6 +93,7 @@ cd frontend && npm run lint && npx tsc --noEmit && npm run build
 
 | Version | Date | Author | Agent | Summary |
 | :--- | :--- | :--- | :--- | :--- |
+| 2.1.0 | 2026-11-22 | notworLe | Antigravity | Added Render (Docker Backend) + Vercel (Frontend) + Supabase Storage deployment config and guide |
 | 2.0.0 | 2026-11-22 | notworLe | Antigravity | Rebuilt fullstack Maison de Lua platform (English, AUD, FastAPI + PostgreSQL, Guest Checkout + Invoice Email, Admin Console) |
 | 1.1.0 | 2026-11-11 | notworLe | Antigravity | Added system overview, folder structure, Mermaid architecture, and booking features |
 | 1.0.0 | 2026-11-10 | notworLe | Antigravity | Added local start script and Docker Compose instructions |

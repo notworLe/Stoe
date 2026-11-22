@@ -34,6 +34,7 @@ Tài liệu kỹ thuật đầy đủ cho dịch vụ Backend API (**FastAPI + S
 | [`API_REFERENCE.md`](API_REFERENCE.md) | **API Spec** | Danh sách toàn bộ endpoint Public Storefront, Admin Auth, Admin Console, request/response và mã lỗi |
 | [`DATABASE_AND_RULES.md`](DATABASE_AND_RULES.md) | **Schema & Business Logic** | Sơ đồ ERD PostgreSQL (5 bảng), luật `Pick in Person` vs `Transport Post`, giãn cách 1 ngày cùng áo, công thức tính giá AUD và dịch vụ hóa đơn Email |
 | [`TEST_REPORT.md`](TEST_REPORT.md) | **QA / Test Report** | Kết quả kiểm thử tự động (`ruff`, `pytest`) và E2E thực tế kết nối PostgreSQL local |
+| [`../../docs/DEPLOY_RENDER_SUPABASE.md`](../../docs/DEPLOY_RENDER_SUPABASE.md) | **Production Deploy** | Hướng dẫn triển khai Docker Backend trên Render + Frontend trên Vercel + PostgreSQL & Storage trên Supabase |
 
 ---
 
