@@ -3,5 +3,11 @@ __pycache__
 .pytest_cache
 .ruff_cache
 .env
+.env.*
 .git
+test
 tests
+docs
+uploads
+*.db
+*.log

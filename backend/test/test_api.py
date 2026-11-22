@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from app import database
+from app.config import normalize_database_url
 from main import create_app
 
 
@@ -640,3 +642,47 @@ def test_admin_auth_upload_settings_garments_bookings_and_transactions(client: T
     overview = client.get("/api/v1/admin/overview", headers=headers).json()
     assert overview["currency"] == "AUD"
     assert overview["paid_revenue_aud"] > 0
+
+
+def test_database_url_normalization_and_supabase_storage_upload(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (
+        normalize_database_url("postgres://u:p@host:5432/db?sslmode=require")
+        == "postgresql+psycopg://u:p@host:5432/db?sslmode=require"
+    )
+    assert (
+        normalize_database_url("postgresql://u:p@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres")
+        == "postgresql+psycopg://u:p@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
+    )
+    assert normalize_database_url("sqlite:///./local.db") == "sqlite:///./local.db"
+
+    captured: dict[str, object] = {}
+
+    async def fake_post(self, url: str, content: bytes, headers: dict[str, str]):  # noqa: ANN001
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["size"] = len(content)
+        return httpx.Response(200, json={"Key": "maison-de-lua-media/test.png"})
+
+    monkeypatch.setenv("SUPABASE_URL", "https://demo-project.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "maison-de-lua-media")
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    headers = _admin_headers(client)
+    resp = client.post(
+        "/api/v1/admin/upload",
+        headers=headers,
+        files={"file": ("brand-logo.png", b"\x89PNG\r\n\x1a\nvalid", "image/png")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["storage"] == "supabase"
+    assert body["url"].startswith(
+        "https://demo-project.supabase.co/storage/v1/object/public/maison-de-lua-media/"
+    )
+    assert str(captured["url"]).startswith(
+        "https://demo-project.supabase.co/storage/v1/object/maison-de-lua-media/"
+    )

@@ -15,10 +15,20 @@ REPO_ROOT = BASE_DIR.parent
 load_dotenv(REPO_ROOT / ".env", override=False)
 
 
+def normalize_database_url(url: str) -> str:
+    """Ensure PostgreSQL URLs from Supabase/Neon/Render use SQLAlchemy psycopg v3 driver."""
+    cleaned = url.strip()
+    if cleaned.startswith("postgres://"):
+        return "postgresql+psycopg://" + cleaned[len("postgres://") :]
+    if cleaned.startswith("postgresql://"):
+        return "postgresql+psycopg://" + cleaned[len("postgresql://") :]
+    return cleaned
+
+
 def _default_database_url() -> str:
     env_url = os.getenv("DATABASE_URL")
     if env_url:
-        return env_url
+        return normalize_database_url(env_url)
     pg_user = os.getenv("POSTGRES_USER", "notworle")
     pg_password = os.getenv("POSTGRES_PASSWORD", "123123123")
     pg_host = os.getenv("POSTGRES_HOST", "localhost")
@@ -63,6 +73,15 @@ class Settings:
     )
     upload_dir: Path = field(
         default_factory=lambda: Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads")))
+    )
+    supabase_url: str = field(
+        default_factory=lambda: os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    )
+    supabase_service_role_key: str = field(
+        default_factory=lambda: os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    )
+    supabase_storage_bucket: str = field(
+        default_factory=lambda: os.getenv("SUPABASE_STORAGE_BUCKET", "maison-de-lua-media").strip()
     )
 
 

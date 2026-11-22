@@ -25,6 +25,7 @@ from app.schemas import (
 )
 from app.security import get_current_admin
 from app.services.email_service import dispatch_invoice_email
+from app.services.storage_service import upload_media_bytes
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
@@ -124,12 +125,13 @@ async def upload_media_file(
             detail="File content does not match a valid PNG, JPG, or WEBP image.",
         )
 
-    settings.upload_dir.mkdir(parents=True, exist_ok=True)
-    unique_name = f"{secrets.token_hex(8)}{ext}"
-    dest = settings.upload_dir / unique_name
-    dest.write_bytes(content)
+    public_url, unique_name, storage_provider = await upload_media_bytes(
+        content=content,
+        ext=ext,
+        settings=settings,
+    )
 
-    return {"url": f"/uploads/{unique_name}", "filename": unique_name}
+    return {"url": public_url, "filename": unique_name, "storage": storage_provider}
 
 
 # ── Garment Management (CRUD) ─────────────────────────────────────────────────
