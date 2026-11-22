@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -14,42 +15,40 @@ import {
   ShieldCheck,
   Truck,
   Store,
+  ArrowRight,
+  Info,
 } from "lucide-react";
 import {
-  type Product,
-  type Size,
-  type DeliveryMethod,
+  type BookedRange,
   type BookingDetails,
+  type DeliveryMethod,
+  type Product,
+  type RentalDays,
+  type Size,
 } from "@/types";
 import { useCart } from "@/context/CartContext";
-import { MOCK_EXISTING_BOOKINGS } from "@/data/bookings";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { FALLBACK_BOOKED_RANGES } from "@/data/bookings";
+import { fetchGarmentAvailability } from "@/lib/api";
+import {
+  ALLOWED_PACKAGES_BY_DELIVERY,
+  RENTAL_PACKAGES,
+  addDaysIso,
+  calculatePackagePriceAud,
+  computeReturnDateIso,
+  formatAud,
+  formatAudShort,
+  getWeekdayName,
+  isWeekdayLockedForPackage,
+  rangesConflictWithGap,
+  timeToMinutes,
+} from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
-/**
- * =====================================================================
- * COMPONENT: ProductBookingInteractive (Hệ thống Đặt thuê Áo Dài)
- * =====================================================================
- * Hướng dẫn cho người mới học (Newbie Developer Guide):
- * - Đây là khối nghiệp vụ cốt lõi của trang chi tiết áo dài LUA Studio:
- *   1. ĐỐI CHIẾU MÃ ÁO & SỐ ĐO: Hiển thị mã áo (vd: Mã 12 - AD-12), ảnh đối chiếu,
- *      số đo 3 vòng (ngực, eo, mông, dài áo) để khách tự ướm, không phải hỏi qua lại trên Drive.
- *   2. CHỌN GÓI THỜI GIAN THUÊ: 1 ngày (24h), 4 ngày (tiêu chuẩn), 8 ngày (mở rộng).
- *   3. PHƯƠNG THỨC NHẬN: Lấy tại Studio ($0) hoặc Giao qua Bưu điện Úc ($16.95 AUD).
- *   4. LỊCH CHỌN NGÀY: Khách chọn Ngày nhận (Pickup Date), hệ thống tự động tính Ngày trả (Return Date).
- *   5. KHUNG GIỜ LẤY & TRẢ: Lấy phải TRƯỚC, trả phải SAU.
- *   6. CẢNH BÁO TRẢ SAU GIỜ HÀNH CHÍNH: Studio đóng cửa sau 21:00. Nếu chọn trả sau 21h
- *      (vd: 21:30, 22:00, 23:00) sẽ hiện cảnh báo và tính phụ phí ngoài giờ (+ $20 AUD).
- *   7. CHẶN TRÙNG LỊCH & BUFFER 6-7H GIẶT HẤP: Nếu Bạn A đã book khung giờ nào đó
- *      (vd: 8am-8pm ngày 01/01/2027), Bạn B KHÔNG THỂ book khung giờ đó và bị chặn thêm 6-7h
- *      buffer tiếp theo để studio kiểm tra, giặt hấp sinh học và khử khuẩn tia cực tím.
- * =====================================================================
- */
 
 interface ProductBookingInteractiveProps {
   product: Product;
 }
 
-// Danh sách các khung giờ lấy đồ tiêu chuẩn (từ 08:00 AM đến 08:00 PM)
 const PICKUP_TIME_SLOTS = [
   "08:00 AM",
   "09:00 AM",
@@ -66,7 +65,6 @@ const PICKUP_TIME_SLOTS = [
   "08:00 PM",
 ];
 
-// Danh sách các khung giờ trả đồ (gồm giờ hành chính và sau 21:00)
 const RETURN_TIME_SLOTS = [
   "09:00 AM",
   "10:00 AM",
@@ -81,123 +79,126 @@ const RETURN_TIME_SLOTS = [
   "07:00 PM",
   "08:00 PM",
   "09:00 PM",
-  "09:30 PM", // Ngoài giờ
-  "10:00 PM", // Ngoài giờ
-  "11:00 PM", // Ngoài giờ
+  "09:30 PM",
+  "10:00 PM",
+  "11:00 PM",
 ];
-
-// Hàm chuyển đổi khung giờ dạng "08:00 AM" thành số phút trong ngày để so sánh
-function timeToMinutes(timeStr: string): number {
-  const [time, period] = timeStr.split(" ");
-  const [hoursStr, minutesStr] = time.split(":");
-  let hours = parseInt(hoursStr, 10);
-  const minutes = parseInt(minutesStr, 10);
-
-  if (period === "PM" && hours !== 12) hours += 12;
-  if (period === "AM" && hours === 12) hours = 0;
-
-  return hours * 60 + minutes;
-}
 
 export default function ProductBookingInteractive({
   product,
 }: ProductBookingInteractiveProps) {
-  const { addItem } = useCart();
+  const router = useRouter();
+  const { addItem, items: cartItems } = useCart();
+  const { settings } = useSiteSettings();
 
-  // 1. Quản lý Size áo
   const defaultSize = product.sizes.find((s) => s.available)?.label || "S";
   const [selectedSize, setSelectedSize] = useState<string>(defaultSize);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
 
-  // 2. Quản lý gói thời gian thuê (1 ngày / 4 ngày / 8 ngày)
-  const [rentalDays, setRentalDays] = useState<number>(4);
+  // Delivery method: "pick_in_person" (all 1,2,4,8) or "transport_post" (only 4,8)
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pick_in_person");
+  const [rentalDays, setRentalDays] = useState<RentalDays>(4);
+  const [packageAutoAdjustedNote, setPackageAutoAdjustedNote] = useState<string | null>(null);
 
-  // 3. Quản lý phương thức nhận hàng
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pickup");
-
-  // 4. Quản lý tháng lịch hiển thị
-  // Mặc định: Tháng 12/2026 hoặc có thể bấm xem Tháng 1/2027 (Kịch bản Bạn A ngày 01/01/2027)
+  // Calendar view state (defaults to December 2026 to showcase seeded bookings + 1-day gap)
   const [currentYear, setCurrentYear] = useState<number>(2026);
-  const [currentMonth, setCurrentMonth] = useState<number>(11); // 11 = Tháng 12 (0-indexed)
+  const [currentMonth, setCurrentMonth] = useState<number>(11); // December (0-indexed)
+  const [pickupDate, setPickupDate] = useState<string>("2026-12-10");
 
-  // 5. Quản lý ngày nhận (Pickup Date: YYYY-MM-DD)
-  const [pickupDate, setPickupDate] = useState<string>("2026-12-15");
+  // Pickup & Return time slots (Pick in Person)
+  const [pickupTime, setPickupTime] = useState<string>("09:00 AM");
+  const [returnTime, setReturnTime] = useState<string>("06:00 PM");
 
-  // 6. Quản lý khung giờ lấy và trả
-  const [pickupTime, setPickupTime] = useState<string>("08:00 AM");
-  const [returnTime, setReturnTime] = useState<string>("08:00 PM");
-
-  // Trạng thái nút Thêm vào giỏ thành công
+  // Live availability fetched from FastAPI backend
+  const [bookedRanges, setBookedRanges] = useState<BookedRange[]>(
+    FALLBACK_BOOKED_RANGES[product.id] || []
+  );
+  const [gapDays, setGapDays] = useState<number>(settings.turnaroundGapDays || 1);
   const [isAddedSuccess, setIsAddedSuccess] = useState(false);
 
-  // ─────────────────────────────────────────────────────────────────
-  // LOGIC TỰ ĐỘNG TÍNH NGÀY TRẢ (RETURN DATE)
-  // ─────────────────────────────────────────────────────────────────
-  const getReturnDate = (): string => {
-    if (!pickupDate) return "";
-    const [year, month, day] = pickupDate.split("-").map(Number);
-    const start = new Date(year, month - 1, day);
-    const end = new Date(start);
-    end.setDate(start.getDate() + rentalDays);
+  useEffect(() => {
+    let active = true;
+    fetchGarmentAvailability(product.id)
+      .then((avail) => {
+        if (!active) return;
+        setBookedRanges(avail.bookings);
+        setGapDays(avail.turnaroundGapDays);
+      })
+      .catch(() => {
+        if (!active) return;
+        setBookedRanges(FALLBACK_BOOKED_RANGES[product.id] || []);
+        setGapDays(settings.turnaroundGapDays || 1);
+      });
+    return () => {
+      active = false;
+    };
+  }, [product.id, settings.turnaroundGapDays]);
 
-    const endYear = end.getFullYear();
-    const endMonth = String(end.getMonth() + 1).padStart(2, "0");
-    const endDay = String(end.getDate()).padStart(2, "0");
-    return `${endYear}-${endMonth}-${endDay}`;
+  // Combine backend bookings + any items for this same garment already in guest's bag
+  const allOccupiedRanges = useMemo(() => {
+    const fromCart: BookedRange[] = cartItems
+      .filter((ci) => ci.product.id === product.id)
+      .map((ci) => ({
+        bookingRef: "IN-YOUR-BAG",
+        startDate: ci.bookingDetails.startDate,
+        endDate: ci.bookingDetails.endDate,
+        gapBeforeDate: addDaysIso(ci.bookingDetails.startDate, -gapDays),
+        gapAfterDate: addDaysIso(ci.bookingDetails.endDate, gapDays),
+        deliveryMethod: ci.bookingDetails.deliveryMethod,
+        rentalDays: ci.rentalDays,
+        status: "in_bag",
+      }));
+    return [...bookedRanges, ...fromCart];
+  }, [bookedRanges, cartItems, product.id, gapDays]);
+
+  const handleDeliveryChange = (nextMethod: DeliveryMethod) => {
+    setDeliveryMethod(nextMethod);
+    const allowed = ALLOWED_PACKAGES_BY_DELIVERY[nextMethod];
+    if (!allowed.includes(rentalDays)) {
+      setRentalDays(4);
+      setPackageAutoAdjustedNote(
+        "Transport Post is available for 4-day and 8-day packages only. Your duration was updated to 4 Days."
+      );
+    } else {
+      setPackageAutoAdjustedNote(null);
+    }
   };
-  const returnDate = getReturnDate();
 
-  // ─────────────────────────────────────────────────────────────────
-  // LOGIC KIỂM TRA TRẢ SAU GIỜ HÀNH CHÍNH (Sau 21:00)
-  // ─────────────────────────────────────────────────────────────────
-  const isAfterHoursReturn = timeToMinutes(returnTime) > 1260;
-  const afterHoursFeeAud = isAfterHoursReturn ? 20 : 0;
-  const afterHoursFeeVnd = isAfterHoursReturn ? 150000 : 0;
+  const returnDate = computeReturnDateIso(pickupDate, rentalDays);
+  const gapAfterSelectedDate = returnDate ? addDaysIso(returnDate, gapDays) : "";
 
-  // ─────────────────────────────────────────────────────────────────
-  // PHÍ VẬN CHUYỂN
-  // ─────────────────────────────────────────────────────────────────
-  const deliveryFeeAud = deliveryMethod === "post" ? 16.95 : 0;
-  const deliveryFeeVnd = deliveryMethod === "post" ? 280000 : 0;
+  const closeMinutes = timeToMinutes(settings.businessCloseTime || "09:00 PM");
+  const isAfterHoursReturn =
+    deliveryMethod === "pick_in_person" && timeToMinutes(returnTime) > closeMinutes;
+  const afterHoursFeeAud = isAfterHoursReturn ? settings.afterHoursFeeAud : 0;
+  const deliveryFeeAud =
+    deliveryMethod === "transport_post" ? settings.transportPostFeeAud : 0;
 
-  // ─────────────────────────────────────────────────────────────────
-  // LOGIC TÍNH TỔNG TIỀN LIVE
-  // ─────────────────────────────────────────────────────────────────
-  const baseAud =
-    product.rentalPriceAud || Math.round((product.rentalPricePerDay * 4) / 16000);
-  const multiplier = rentalDays === 8 ? 1.75 : rentalDays === 1 ? 0.45 : 1;
-  const rentalPriceAud = Math.round(baseAud * multiplier);
-  const rentalPriceVnd = Math.round(product.rentalPricePerDay * rentalDays * multiplier);
+  const rentalFeeAud = calculatePackagePriceAud(product.rentalPriceAud, rentalDays);
+  const totalAud = Math.round((rentalFeeAud + deliveryFeeAud + afterHoursFeeAud) * 100) / 100;
 
-  const totalAud = rentalPriceAud + deliveryFeeAud + afterHoursFeeAud;
-  const totalVnd = rentalPriceVnd + deliveryFeeVnd + afterHoursFeeVnd;
-
-  const totalVndFormatted = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(totalVnd);
-
-  // ─────────────────────────────────────────────────────────────────
-  // LOGIC CHẶN TRÙNG LỊCH & BUFFER 6-7H GIẶT HẤP KHỬ KHUẨN
-  // ─────────────────────────────────────────────────────────────────
-  const code = product.code || "AD-12";
-  const productBookings = MOCK_EXISTING_BOOKINGS.filter(
-    (b) => b.productId === product.id || b.productCode === code
-  );
-
-  let bookingConflict: { existingBooking: typeof MOCK_EXISTING_BOOKINGS[0]; reason: string } | null = null;
+  // Validate 1-day same-garment turnaround gap against all occupied ranges
+  let bookingConflict: { existing: BookedRange; reason: string } | null = null;
   if (pickupDate && returnDate) {
-    for (const b of productBookings) {
-      const conflictDate =
-        (pickupDate >= b.startDate && pickupDate <= b.endDate) ||
-        (returnDate >= b.startDate && returnDate <= b.endDate) ||
-        (pickupDate <= b.startDate && returnDate >= b.endDate);
-
-      if (conflictDate) {
+    for (const existing of allOccupiedRanges) {
+      if (
+        rangesConflictWithGap(
+          pickupDate,
+          returnDate,
+          existing.startDate,
+          existing.endDate,
+          gapDays
+        )
+      ) {
+        const nextAvailable = addDaysIso(existing.endDate, gapDays + 1);
+        const prevAvailableEnd = addDaysIso(existing.startDate, -(gapDays + 1));
+        const sourceLabel =
+          existing.status === "in_bag"
+            ? "an item already in your bag"
+            : `booking ${existing.bookingRef}`;
         bookingConflict = {
-          existingBooking: b,
-          reason: `Chiếc áo dài ${code} đã có ${b.customerName} đặt từ ${b.pickupTime} đến ${b.returnTime} ngày ${b.startDate}. Studio áp dụng quy chuẩn 6-7 tiếng buffer để kiểm tra, giặt hấp sinh học và khử khuẩn tia cực tím (đến ${b.bufferEndTime}). Bạn không thể đặt trùng khung giờ này!`,
+          existing,
+          reason: `Garment ${product.code} is occupied from ${existing.startDate} to ${existing.endDate} (${sourceLabel}). A mandatory ${gapDays}-day cleaning & turnaround gap applies between bookings of the same garment. Please return by ${prevAvailableEnd} or start from ${nextAvailable} onwards.`,
         };
         break;
       }
@@ -205,37 +206,55 @@ export default function ProductBookingInteractive({
   }
 
   const isTimeOrderValid =
-    rentalDays === 1 ? timeToMinutes(returnTime) > timeToMinutes(pickupTime) : true;
+    deliveryMethod === "pick_in_person" && rentalDays === 1
+      ? timeToMinutes(returnTime) > timeToMinutes(pickupTime)
+      : true;
 
-  // ─────────────────────────────────────────────────────────────────
-  // RENDER LƯỚI LỊCH (CALENDAR GRID)
-  // ─────────────────────────────────────────────────────────────────
-  const daysInMonth: Array<{ dayNumber: number; dateStr: string; isBooked: boolean }> = [];
-  const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const isStartWeekdayLocked = isWeekdayLockedForPackage(pickupDate, rentalDays);
 
-  for (let d = 1; d <= totalDays; d++) {
+  // Build calendar cells for active month
+  const { bookedDateSet, gapDateSet } = useMemo(() => {
+    const booked = new Set<string>();
+    const gap = new Set<string>();
+
+    for (const b of allOccupiedRanges) {
+      let cursor = b.startDate;
+      while (cursor <= b.endDate) {
+        booked.add(cursor);
+        cursor = addDaysIso(cursor, 1);
+      }
+      for (let offset = 1; offset <= gapDays; offset++) {
+        gap.add(addDaysIso(b.startDate, -offset));
+        gap.add(addDaysIso(b.endDate, offset));
+      }
+    }
+    booked.forEach((d) => gap.delete(d));
+    return { bookedDateSet: booked, gapDateSet: gap };
+  }, [allOccupiedRanges, gapDays]);
+
+  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const daysInMonth = Array.from({ length: totalDaysInMonth }, (_, idx) => {
+    const dayNumber = idx + 1;
     const monthStr = String(currentMonth + 1).padStart(2, "0");
-    const dayStr = String(d).padStart(2, "0");
+    const dayStr = String(dayNumber).padStart(2, "0");
     const dateStr = `${currentYear}-${monthStr}-${dayStr}`;
+    return {
+      dayNumber,
+      dateStr,
+      isBooked: bookedDateSet.has(dateStr),
+      isGapDay: gapDateSet.has(dateStr),
+      isWeekdayLocked: isWeekdayLockedForPackage(dateStr, rentalDays),
+    };
+  });
 
-    const isBooked = productBookings.some(
-      (b) => dateStr >= b.startDate && dateStr <= b.endDate
-    );
-
-    daysInMonth.push({ dayNumber: d, dateStr, isBooked });
-  }
-
-  // Thứ trong tuần của ngày mùng 1 (0: CN, 1: T2, ..., 6: T7)
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
-  // Chuyển đổi sang chuẩn T2 = 0, CN = 6
   const emptyLeadingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
-  const monthLabel = new Intl.DateTimeFormat("vi-VN", {
+  const monthLabel = new Intl.DateTimeFormat("en-AU", {
     month: "long",
     year: "numeric",
   }).format(new Date(currentYear, currentMonth, 1));
 
-  // Chuyển tháng
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -254,46 +273,45 @@ export default function ProductBookingInteractive({
     }
   };
 
-  // Nút nhảy nhanh tới ngày 01/01/2027 để thử kịch bản Bạn A book áo Mã 12
-  const jumpToScenarioA = () => {
-    setCurrentYear(2027);
-    setCurrentMonth(0); // Tháng 1
-    setPickupDate("2027-01-01");
-    setRentalDays(1);
-    setPickupTime("08:00 AM");
-    setReturnTime("08:00 PM");
-  };
+  const buildBookingDetails = (): BookingDetails => ({
+    startDate: pickupDate,
+    endDate: returnDate,
+    pickupTime: deliveryMethod === "pick_in_person" ? pickupTime : "09:00 AM",
+    returnTime: deliveryMethod === "pick_in_person" ? returnTime : "05:00 PM",
+    isAfterHoursReturn,
+    afterHoursFeeAud,
+    deliveryMethod,
+    deliveryFeeAud,
+    rentalFeeAud,
+  });
 
-  // Xử lý thêm vào giỏ hàng
-  const handleAddToCart = () => {
-    if (bookingConflict || !isTimeOrderValid) return;
+  const canBook =
+    !bookingConflict &&
+    !isStartWeekdayLocked &&
+    isTimeOrderValid &&
+    Boolean(pickupDate);
 
-    const bookingDetails: BookingDetails = {
-      startDate: pickupDate,
-      endDate: returnDate,
-      pickupTime,
-      returnTime,
-      isAfterHoursReturn,
-      afterHoursFeeAud,
-      afterHoursFeeVnd,
-      deliveryMethod,
-      deliveryFeeAud,
-      deliveryFeeVnd,
-    };
-
-    addItem(product, selectedSize, rentalDays, 1, bookingDetails);
+  const handleAddToBag = () => {
+    if (!canBook) return;
+    addItem(product, selectedSize, rentalDays, buildBookingDetails(), true);
     setIsAddedSuccess(true);
     setTimeout(() => setIsAddedSuccess(false), 2500);
   };
 
+  const handleBookNow = () => {
+    if (!canBook) return;
+    addItem(product, selectedSize, rentalDays, buildBookingDetails(), false);
+    router.push("/checkout");
+  };
+
+  const allowedPackages = ALLOWED_PACKAGES_BY_DELIVERY[deliveryMethod];
+
   return (
     <div className="flex flex-col gap-7 pt-4 border-t border-brand-border/60">
-      {/* ─────────────────────────────────────────────────────────────
-          1. HEADER ĐỐI CHIẾU MÃ ÁO & SỐ ĐO TRỰC TIẾP
-      ─────────────────────────────────────────────────────────────── */}
-      <div className="p-3.5 bg-brand-surface/20 border border-brand-border/60 flex items-center justify-between">
+      {/* Garment Verification & Size Guide Bar */}
+      <div className="p-3.5 bg-brand-surface/20 border border-brand-border/60 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="relative w-12 aspect-[3/4] bg-brand-surface/40 overflow-hidden border border-brand-border/40">
+          <div className="relative w-12 aspect-[3/4] bg-brand-surface/40 overflow-hidden border border-brand-border/40 shrink-0">
             {product.images[0] && (
               <Image
                 src={product.images[0]}
@@ -305,17 +323,17 @@ export default function ProductBookingInteractive({
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold uppercase tracking-wider bg-brand-foreground text-brand-background px-2 py-0.5">
-                MÃ: {product.code || "AD-12"}
+                CODE: {product.code}
               </span>
               <span className="text-xs font-sans text-brand-muted">
-                (Thiết kế độc bản)
+                One-of-one Archive Piece
               </span>
             </div>
             {product.modelInfo && (
               <p className="text-[11px] font-sans text-brand-muted mt-1">
-                👤 Người mẫu: cao {product.modelInfo.height} — mặc {product.modelInfo.wearingSize}
+                Model Reference: {product.modelInfo.height} — Wearing {product.modelInfo.wearingSize}
               </p>
             )}
           </div>
@@ -324,28 +342,28 @@ export default function ProductBookingInteractive({
         <button
           type="button"
           onClick={() => setShowSizeGuide(!showSizeGuide)}
-          className="text-xs font-sans text-brand-foreground underline underline-offset-4 flex items-center gap-1 hover:opacity-75 cursor-pointer"
+          className="text-xs font-sans text-brand-foreground underline underline-offset-4 flex items-center gap-1 hover:opacity-75 cursor-pointer shrink-0"
         >
           <Ruler size={13} />
-          <span>{showSizeGuide ? "Đóng số đo" : "Check số đo 3 vòng"}</span>
+          <span>{showSizeGuide ? "Hide Size Guide" : "Size Guide (cm)"}</span>
         </button>
       </div>
 
-      {/* Bảng số đo hiển thị trực quan */}
+      {/* Expandable Size Guide Table */}
       {showSizeGuide && (
-        <div className="p-4 bg-brand-background border border-brand-border text-xs font-sans animate-in fade-in duration-200">
+        <div className="p-4 bg-brand-card border border-brand-border text-xs font-sans">
           <p className="font-serif text-sm uppercase tracking-wider text-brand-foreground mb-1">
-            BẢNG THÔNG SỐ ÁO DÀI CHI TIẾT (CM):
+            GARMENT MEASUREMENTS (CM)
           </p>
           <p className="text-[11px] text-brand-muted mb-3">
-            * Khách hàng nên chọn size có số đo vòng ngực và eo chênh lệch 1-2cm so với cơ thể để mặc tôn dáng và cử động thoải mái nhất.
+            Allow 1–2 cm ease at the bust and waist for an authentic, comfortable Ao Dai drape.
           </p>
           <div className="grid grid-cols-5 gap-2 text-center border-t border-brand-border/40 pt-2 font-mono text-[11px]">
             <span className="font-bold text-brand-foreground">Size</span>
-            <span>Vòng ngực</span>
-            <span>Vòng eo</span>
-            <span>Vòng mông</span>
-            <span>Dài áo</span>
+            <span>Bust</span>
+            <span>Waist</span>
+            <span>Hip</span>
+            <span>Length</span>
 
             {product.sizes.map((s) => (
               <div key={s.label} className="contents text-brand-muted">
@@ -360,15 +378,13 @@ export default function ProductBookingInteractive({
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          2. CHỌN SIZE ÁO DÀI
-      ─────────────────────────────────────────────────────────────── */}
+      {/* STEP 1: CHOOSE SIZE */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs font-sans">
           <span className="uppercase tracking-widest text-brand-muted font-medium">
-            1. CHỌN KÍCH CỠ (SIZE):
+            1. CHOOSE SIZE
           </span>
-          <span className="text-brand-foreground">Đã chọn: Size {selectedSize}</span>
+          <span className="text-brand-foreground">Selected: Size {selectedSize}</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -386,9 +402,11 @@ export default function ProductBookingInteractive({
                   "min-w-14 py-2.5 px-3 text-xs font-sans uppercase tracking-widest border transition-all text-center",
                   !isAvailable &&
                     "opacity-40 border-brand-border/30 line-through cursor-not-allowed bg-brand-surface/10",
-                  isAvailable && !isSelected &&
+                  isAvailable &&
+                    !isSelected &&
                     "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground cursor-pointer",
-                  isAvailable && isSelected &&
+                  isAvailable &&
+                    isSelected &&
                     "bg-brand-foreground text-brand-background border-brand-foreground font-medium cursor-pointer"
                 )}
               >
@@ -399,150 +417,181 @@ export default function ProductBookingInteractive({
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          3. CHỌN GÓI THỜI GIAN THUÊ (RENTAL PERIOD — theo booking-date.png)
-      ─────────────────────────────────────────────────────────────── */}
+      {/* STEP 2: CHOOSE POST / DELIVERY METHOD */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-xs font-sans uppercase tracking-widest text-brand-muted font-medium">
+          2. CHOOSE DELIVERY METHOD (POST)
+        </span>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleDeliveryChange("pick_in_person")}
+            className={cn(
+              "p-3.5 text-left border transition-all cursor-pointer flex flex-col gap-1",
+              deliveryMethod === "pick_in_person"
+                ? "bg-brand-foreground text-brand-background border-brand-foreground"
+                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-wider font-medium">
+                <Store size={14} />
+                Pick in Person
+              </span>
+              <span className="text-[11px] font-mono">FREE</span>
+            </div>
+            <span
+              className={cn(
+                "text-[11px] font-sans",
+                deliveryMethod === "pick_in_person"
+                  ? "text-brand-background/80"
+                  : "text-brand-muted"
+              )}
+            >
+              Melbourne Studio · All packages (1, 2, 4, 8 days)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDeliveryChange("transport_post")}
+            className={cn(
+              "p-3.5 text-left border transition-all cursor-pointer flex flex-col gap-1",
+              deliveryMethod === "transport_post"
+                ? "bg-brand-foreground text-brand-background border-brand-foreground"
+                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-wider font-medium">
+                <Truck size={14} />
+                Transport Post
+              </span>
+              <span className="text-[11px] font-mono">
+                +{formatAudShort(settings.transportPostFeeAud)}
+              </span>
+            </div>
+            <span
+              className={cn(
+                "text-[11px] font-sans",
+                deliveryMethod === "transport_post"
+                  ? "text-brand-background/80"
+                  : "text-brand-muted"
+              )}
+            >
+              Australia Post Express · 4 &amp; 8 day packages only
+            </span>
+          </button>
+        </div>
+
+        {packageAutoAdjustedNote && (
+          <div className="p-2.5 bg-brand-surface/40 border border-brand-border text-[11px] font-sans text-brand-foreground flex items-center gap-2">
+            <Info size={14} className="shrink-0" />
+            <span>{packageAutoAdjustedNote}</span>
+          </div>
+        )}
+      </div>
+
+      {/* STEP 3: CHOOSE TIME PACKAGE (1, 2, 4, 8 DAYS) */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs font-sans">
           <span className="uppercase tracking-widest text-brand-muted font-medium">
-            2. THỜI GIAN THUÊ (RENTAL PERIOD):
+            3. CHOOSE RENTAL TIME PACKAGE
           </span>
           <span className="text-brand-foreground">
-            {rentalDays === 1 ? "Gói 24h sự kiện" : rentalDays === 4 ? "Gói 4 ngày tiêu chuẩn" : "Gói 8 ngày mở rộng"}
+            {rentalDays} {rentalDays === 1 ? "Day" : "Days"} ({formatAud(rentalFeeAud)})
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
-          <button
-            type="button"
-            onClick={() => setRentalDays(1)}
-            className={cn(
-              "py-3 px-2 text-xs font-sans tracking-wider uppercase border transition-all text-center cursor-pointer",
-              rentalDays === 1
-                ? "bg-brand-foreground text-brand-background border-brand-foreground font-medium"
-                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
-            )}
-          >
-            1 Ngày — $60
-          </button>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {RENTAL_PACKAGES.map((days) => {
+            const isAllowed = allowedPackages.includes(days);
+            const isSelected = rentalDays === days;
+            const pkgPrice = calculatePackagePriceAud(product.rentalPriceAud, days);
 
-          <button
-            type="button"
-            onClick={() => setRentalDays(4)}
-            className={cn(
-              "py-3 px-2 text-xs font-sans tracking-wider uppercase border transition-all text-center cursor-pointer",
-              rentalDays === 4
-                ? "bg-brand-foreground text-brand-background border-brand-foreground font-medium"
-                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
-            )}
-          >
-            4 Ngày — ${baseAud}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setRentalDays(8)}
-            className={cn(
-              "py-3 px-2 text-xs font-sans tracking-wider uppercase border transition-all text-center cursor-pointer",
-              rentalDays === 8
-                ? "bg-brand-foreground text-brand-background border-brand-foreground font-medium"
-                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
-            )}
-          >
-            8 Ngày — ${Math.round(baseAud * 1.75)}
-          </button>
+            return (
+              <button
+                key={days}
+                type="button"
+                disabled={!isAllowed}
+                onClick={() => {
+                  if (isAllowed) {
+                    setRentalDays(days);
+                    setPackageAutoAdjustedNote(null);
+                  }
+                }}
+                className={cn(
+                  "py-3 px-2 border transition-all text-center flex flex-col items-center justify-center gap-0.5",
+                  !isAllowed &&
+                    "opacity-35 border-brand-border/40 bg-brand-surface/15 cursor-not-allowed line-through",
+                  isAllowed &&
+                    !isSelected &&
+                    "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground cursor-pointer",
+                  isAllowed &&
+                    isSelected &&
+                    "bg-brand-foreground text-brand-background border-brand-foreground font-medium cursor-pointer"
+                )}
+              >
+                <span className="text-xs font-sans uppercase tracking-wider">
+                  {days} {days === 1 ? "Day" : "Days"}
+                </span>
+                <span
+                  className={cn(
+                    "text-[11px] font-mono",
+                    isSelected ? "text-brand-background/90" : "text-brand-muted"
+                  )}
+                >
+                  {formatAudShort(pkgPrice)}
+                </span>
+                {!isAllowed && (
+                  <span className="text-[9px] font-sans uppercase tracking-wider no-underline">
+                    Pick in Person only
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          4. PHƯƠNG THỨC GIAO NHẬN (DELIVERY METHOD — theo booking-date.png)
-      ─────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-sans uppercase tracking-widest text-brand-muted font-medium">
-          3. HÌNH THỨC NHẬN ĐỒ (DELIVERY METHOD):
-        </span>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setDeliveryMethod("pickup")}
-            className={cn(
-              "py-3 px-3 text-xs font-sans tracking-wider uppercase border flex items-center justify-center gap-2 transition-all cursor-pointer",
-              deliveryMethod === "pickup"
-                ? "bg-brand-foreground text-brand-background border-brand-foreground font-medium"
-                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
-            )}
-          >
-            <Store size={14} />
-            <span>Pickup (Studio VIC — Free)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setDeliveryMethod("post")}
-            className={cn(
-              "py-3 px-3 text-xs font-sans tracking-wider uppercase border flex items-center justify-center gap-2 transition-all cursor-pointer",
-              deliveryMethod === "post"
-                ? "bg-brand-foreground text-brand-background border-brand-foreground font-medium"
-                : "bg-transparent text-brand-foreground border-brand-border hover:border-brand-foreground"
-            )}
-          >
-            <Truck size={14} />
-            <span>Post (Bưu điện +$16.95)</span>
-          </button>
-        </div>
-
-        <p className="text-[11px] font-sans text-brand-muted italic mt-0.5">
-          * Chọn ngày nhận đồ trước sự kiện 1-2 ngày để trang phục chuyển phát kịp thời trước ngày trọng đại của bạn.
-        </p>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          5. LỊCH CHỌN NGÀY & TỰ ĐỘNG BÁO NGÀY TRẢ (CALENDAR)
-      ─────────────────────────────────────────────────────────────── */}
+      {/* STEP 4: CHOOSE DATES (CALENDAR WITH 1-DAY GAP CONSTRAINT) */}
       <div className="flex flex-col gap-2.5">
-        <div className="flex items-center justify-between text-xs font-sans">
+        <div className="flex items-center justify-between text-xs font-sans flex-wrap gap-2">
           <span className="uppercase tracking-widest text-brand-muted font-medium flex items-center gap-1.5">
             <CalendarIcon size={14} />
-            <span>4. CHỌN NGÀY LẤY ĐỒ (PICKUP DATE):</span>
+            <span>4. CHOOSE START DATE</span>
           </span>
-
-          {/* Nút nhảy nhanh kịch bản Bạn A để test buffer 6-7h */}
-          <button
-            type="button"
-            onClick={jumpToScenarioA}
-            className="text-[11px] text-brand-foreground underline underline-offset-4 hover:opacity-70 cursor-pointer"
-          >
-            [Thử kịch bản Bạn A 01/01/2027]
-          </button>
+          <span className="text-[11px] text-brand-muted">
+            {rentalDays === 4
+              ? `Mon–Wed locked for 4-day package · ${gapDays}-day care gap`
+              : `Mandatory ${gapDays}-day care gap between rentals`}
+          </span>
         </div>
 
-        {/* Khung Lịch Tháng */}
-        <div className="p-4 bg-brand-background border border-brand-border">
-          {/* Thanh điều hướng tháng */}
+        <div className="p-4 bg-brand-card border border-brand-border">
           <div className="flex items-center justify-between pb-3 border-b border-brand-border/40 mb-3">
             <button
               type="button"
               onClick={handlePrevMonth}
               className="p-1 hover:bg-brand-surface/40 transition-colors cursor-pointer"
-              aria-label="Tháng trước"
+              aria-label="Previous month"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="font-serif text-sm uppercase tracking-wider text-brand-foreground capitalize">
+            <span className="font-serif text-sm uppercase tracking-wider text-brand-foreground">
               {monthLabel}
             </span>
             <button
               type="button"
               onClick={handleNextMonth}
               className="p-1 hover:bg-brand-surface/40 transition-colors cursor-pointer"
-              aria-label="Tháng sau"
+              aria-label="Next month"
             >
               <ChevronRight size={16} />
             </button>
           </div>
 
-          {/* Hàng tên thứ trong tuần */}
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-sans text-brand-muted mb-2 tracking-wider">
             <span>MO</span>
             <span>TU</span>
@@ -553,15 +602,12 @@ export default function ProductBookingInteractive({
             <span>SU</span>
           </div>
 
-          {/* Lưới các ngày */}
           <div className="grid grid-cols-7 gap-1 text-center font-sans text-xs">
-            {/* Các ô trống trước ngày mùng 1 */}
             {Array.from({ length: emptyLeadingDays }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-9" />
+              <div key={`empty-${i}`} className="h-10" />
             ))}
 
-            {/* Các ngày trong tháng */}
-            {daysInMonth.map(({ dayNumber, dateStr, isBooked }) => {
+            {daysInMonth.map(({ dayNumber, dateStr, isBooked, isGapDay, isWeekdayLocked }) => {
               const isSelectedStart = pickupDate === dateStr;
               const isSelectedEnd = returnDate === dateStr;
               const isInRange =
@@ -569,215 +615,309 @@ export default function ProductBookingInteractive({
                 returnDate &&
                 dateStr > pickupDate &&
                 dateStr < returnDate;
+              const isSelectedGap =
+                !bookingConflict && !isStartWeekdayLocked && gapAfterSelectedDate === dateStr;
+              const isCellDisabled = isBooked || isWeekdayLocked;
 
               return (
                 <button
                   key={dateStr}
                   type="button"
-                  disabled={isBooked}
+                  disabled={isCellDisabled}
                   onClick={() => setPickupDate(dateStr)}
-                  title={isBooked ? "Đã có khách book trước (Đang giặt hấp khử khuẩn)" : undefined}
+                  title={
+                    isBooked
+                      ? "Already booked"
+                      : isWeekdayLocked
+                      ? "Locked for 4-day package (Monday–Wednesday unavailable; choose Thursday–Sunday)"
+                      : isGapDay
+                      ? `${gapDays}-day cleaning & sanitization turnaround gap`
+                      : `Select ${dateStr}`
+                  }
                   className={cn(
-                    "h-9 flex flex-col items-center justify-center transition-all text-xs relative",
-                    // Ngày đã có khách book
+                    "h-10 flex flex-col items-center justify-center transition-all text-xs relative border border-transparent",
                     isBooked &&
-                      "opacity-35 bg-brand-surface/25 line-through cursor-not-allowed border border-dashed border-brand-border/40 text-brand-muted",
-                    // Ngày trống chưa chọn
+                      "opacity-40 bg-brand-surface/40 line-through cursor-not-allowed border-dashed border-brand-border text-brand-muted",
                     !isBooked &&
+                      isWeekdayLocked &&
+                      !isInRange &&
+                      !isSelectedEnd &&
+                      "opacity-35 bg-brand-surface/25 line-through cursor-not-allowed border border-brand-border/30 text-brand-muted",
+                    !isCellDisabled &&
+                      isGapDay &&
                       !isSelectedStart &&
                       !isSelectedEnd &&
                       !isInRange &&
-                      "hover:bg-brand-surface/30 cursor-pointer text-brand-foreground",
-                    // Ngày bắt đầu lấy
-                    isSelectedStart &&
+                      "bg-brand-peach/35 border-dashed border-brand-border/60 text-brand-muted cursor-pointer",
+                    !isCellDisabled &&
+                      !isGapDay &&
+                      !isSelectedStart &&
+                      !isSelectedEnd &&
+                      !isInRange &&
+                      "hover:bg-brand-surface/40 cursor-pointer text-brand-foreground",
+                    isInRange && "bg-brand-sage/60 text-brand-foreground font-medium",
+                    (isSelectedStart || isSelectedEnd) &&
+                      !isStartWeekdayLocked &&
                       "bg-brand-foreground text-brand-background font-bold z-10",
-                    // Ngày trong khoảng thuê
-                    isInRange &&
-                      "bg-brand-sage/50 text-brand-foreground font-medium",
-                    // Ngày hoàn trả
-                    isSelectedEnd &&
-                      "bg-brand-foreground text-brand-background font-bold z-10"
+                    isSelectedStart &&
+                      isStartWeekdayLocked &&
+                      "bg-brand-accent/20 text-brand-accent border-brand-accent font-bold z-10",
+                    isSelectedGap &&
+                      !isBooked &&
+                      "border-dashed border-brand-border bg-brand-peach/35 text-brand-muted"
                   )}
                 >
                   <span>{dayNumber}</span>
                   {isBooked && (
-                    <span className="text-[8px] tracking-tighter text-brand-muted">Book</span>
+                    <span className="text-[8px] uppercase tracking-tighter">Booked</span>
                   )}
+                  {!isBooked && isSelectedStart && isSelectedEnd && !isStartWeekdayLocked && (
+                    <span className="text-[8px] uppercase tracking-tighter">1-Day</span>
+                  )}
+                  {!isBooked && isSelectedStart && !isSelectedEnd && !isStartWeekdayLocked && (
+                    <span className="text-[8px] uppercase tracking-tighter">Pick</span>
+                  )}
+                  {!isBooked && isSelectedEnd && !isSelectedStart && !isStartWeekdayLocked && (
+                    <span className="text-[8px] uppercase tracking-tighter">Return</span>
+                  )}
+                  {!isBooked && isSelectedGap && !isSelectedStart && !isSelectedEnd && (
+                    <span className="text-[8px] uppercase tracking-tighter">Care</span>
+                  )}
+                  {!isBooked &&
+                    isWeekdayLocked &&
+                    !isInRange &&
+                    !isSelectedStart &&
+                    !isSelectedEnd &&
+                    !isSelectedGap && (
+                      <span className="text-[8px] uppercase tracking-tighter">Lock</span>
+                    )}
+                  {!isCellDisabled &&
+                    isGapDay &&
+                    !isSelectedStart &&
+                    !isSelectedEnd &&
+                    !isInRange &&
+                    !isSelectedGap && (
+                      <span className="text-[8px] uppercase tracking-tighter">Gap</span>
+                    )}
                 </button>
               );
             })}
           </div>
+
+          {/* Legend */}
+          <div className="mt-3 pt-3 border-t border-brand-border/40 flex flex-wrap gap-4 text-[10px] font-sans uppercase tracking-wider text-brand-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-3 h-3 bg-brand-foreground inline-block" /> Selected
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-3 h-3 bg-brand-surface/50 border border-dashed border-brand-border inline-block" /> Booked
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-3 h-3 bg-brand-peach/45 border border-dashed border-brand-border inline-block" /> {gapDays}-Day Care Gap
+            </span>
+            {rentalDays === 4 && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-3 h-3 bg-brand-surface/30 border border-brand-border/60 inline-block" /> Mon–Wed Locked (4d)
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Hộp tóm tắt lộ trình ngày thuê */}
+        {/* Selected Schedule Summary */}
         {pickupDate && returnDate && (
-          <div className="p-3 bg-brand-surface/20 border border-brand-border/60 text-xs font-sans flex items-center justify-between">
+          <div className="p-3 bg-brand-surface/20 border border-brand-border/60 text-xs font-sans flex items-center justify-between gap-3">
             <div>
               <span className="text-brand-muted uppercase text-[10px] tracking-wider block">
-                LỘ TRÌNH THUÊ ({rentalDays} NGÀY):
+                RENTAL SCHEDULE ({rentalDays} {rentalDays === 1 ? "DAY" : "DAYS"} INCLUSIVE):
               </span>
               <span className="text-brand-foreground font-medium">
-                Lấy: {pickupDate} ➔ Trả: {returnDate}
+                Pickup: {pickupDate} → Return: {returnDate}
+              </span>
+              <span className="block text-[11px] text-brand-muted mt-0.5">
+                Studio cleaning gap after return: {gapAfterSelectedDate} ({gapDays}-day gap)
               </span>
             </div>
-            <span className="text-[11px] font-mono px-2 py-1 bg-brand-sage border border-brand-border/40 text-brand-foreground">
-              +{rentalDays} ngày
+            <span className="text-[11px] font-mono px-2.5 py-1 bg-brand-sage border border-brand-border/40 text-brand-foreground shrink-0">
+              {rentalDays}d
             </span>
           </div>
         )}
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          6. CHỌN KHUNG GIỜ LẤY & KHUNG GIỜ TRẢ
-      ─────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <span className="text-xs font-sans uppercase tracking-widest text-brand-muted font-medium flex items-center gap-1.5">
-          <Clock size={14} />
-          <span>5. KHUNG GIỜ LẤY & TRẢ (PICKUP & RETURN TIME):</span>
-        </span>
+      {/* STEP 5: PICKUP & RETURN TIME (Pick in Person) OR POST DISPATCH NOTE */}
+      {deliveryMethod === "pick_in_person" ? (
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-sans uppercase tracking-widest text-brand-muted font-medium flex items-center gap-1.5">
+            <Clock size={14} />
+            <span>5. PICKUP &amp; RETURN TIME (STUDIO HOURS {settings.businessOpenTime} – {settings.businessCloseTime})</span>
+          </span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Chọn giờ lấy */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-sans text-brand-muted uppercase tracking-wider">
-              Khung giờ lấy (Pickup):
-            </label>
-            <select
-              value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
-              className="w-full py-2.5 px-3 bg-brand-background border border-brand-border text-xs font-sans text-brand-foreground focus:outline-brand-ring cursor-pointer"
-            >
-              {PICKUP_TIME_SLOTS.map((t) => (
-                <option key={t} value={t}>
-                  {t} {t === "08:00 AM" ? "(Mở cửa studio)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Chọn giờ trả */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-sans text-brand-muted uppercase tracking-wider">
-              Khung giờ trả (Return):
-            </label>
-            <select
-              value={returnTime}
-              onChange={(e) => setReturnTime(e.target.value)}
-              className={cn(
-                "w-full py-2.5 px-3 bg-brand-background border text-xs font-sans text-brand-foreground focus:outline-brand-ring cursor-pointer",
-                isAfterHoursReturn ? "border-amber-700/80 bg-amber-500/10" : "border-brand-border"
-              )}
-            >
-              {RETURN_TIME_SLOTS.map((t) => (
-                <option key={t} value={t}>
-                  {t} {t === "09:00 PM" ? "(Hết giờ làm việc)" : t > "09:00 PM" ? "(Ngoài giờ)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* CẢNH BÁO: Giờ lấy phải TRƯỚC, giờ trả phải SAU */}
-        {!isTimeOrderValid && (
-          <div className="p-3 bg-amber-500/10 border border-amber-600/50 text-xs font-sans text-amber-900 flex items-start gap-2">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-700" />
-            <span>
-              <strong>Lỗi khung giờ:</strong> Khi thuê gói trong ngày (24h), khung giờ lấy ({pickupTime}) phải diễn ra TRƯỚC khung giờ trả ({returnTime}). Vui lòng điều chỉnh lại giờ lấy hoặc giờ trả!
-            </span>
-          </div>
-        )}
-
-        {/* CẢNH BÁO TRẢ SAU GIỜ HÀNH CHÍNH (Sau 21:00) */}
-        {isAfterHoursReturn && (
-          <div className="p-3 bg-amber-500/15 border border-amber-600/60 text-xs font-sans text-amber-950 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 font-bold uppercase tracking-wide text-amber-900">
-              <AlertTriangle size={15} className="text-amber-700" />
-              <span>LƯU Ý: TRẢ ĐỒ NGOÀI GIỜ LÀM VIỆC (Sau 21:00)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-sans text-brand-muted uppercase tracking-wider">
+                Pickup Time
+              </label>
+              <select
+                value={pickupTime}
+                onChange={(e) => setPickupTime(e.target.value)}
+                className="w-full py-2.5 px-3 bg-brand-background border border-brand-border text-xs font-sans text-brand-foreground focus:outline-brand-ring cursor-pointer"
+              >
+                {PICKUP_TIME_SLOTS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
             </div>
-            <p className="text-[11px] leading-relaxed text-amber-900/90">
-              Studio ngưng làm việc lúc 21:00. Bạn đang chọn trả đồ lúc <strong>{returnTime}</strong>. Yêu cầu này sẽ được nhân viên liên hệ xác nhận (follow-up) để sắp xếp người nhận, và áp dụng phụ phí trả muộn ngoài giờ <strong>+ $20 AUD (150.000₫)</strong>.
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          7. CẢNH BÁO XUNG ĐỘT BUFFER 6-7H NẾU TRÙNG LỊCH BẠN A
-      ─────────────────────────────────────────────────────────────── */}
-      {bookingConflict && (
-        <div className="p-4 bg-red-500/10 border border-red-500/50 text-xs font-sans text-red-950 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-red-900">
-            <AlertTriangle size={16} className="text-red-700 shrink-0" />
-            <span>KHÔNG THỂ ĐẶT KHUNG GIỜ NÀY (TRÙNG LỊCH & BUFFER 6-7H)</span>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-sans text-brand-muted uppercase tracking-wider">
+                Return Time
+              </label>
+              <select
+                value={returnTime}
+                onChange={(e) => setReturnTime(e.target.value)}
+                className={cn(
+                  "w-full py-2.5 px-3 bg-brand-background border text-xs font-sans text-brand-foreground focus:outline-brand-ring cursor-pointer",
+                  isAfterHoursReturn ? "border-brand-gold bg-brand-gold/15" : "border-brand-border"
+                )}
+              >
+                {RETURN_TIME_SLOTS.map((t) => {
+                  const late = timeToMinutes(t) > closeMinutes;
+                  return (
+                    <option key={t} value={t}>
+                      {t} {late ? `(After-hours +${formatAudShort(settings.afterHoursFeeAud)})` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
-          <p className="text-[11px] leading-relaxed text-red-900/90">
-            {bookingConflict.reason}
-          </p>
-          <div className="mt-1 pt-1 border-t border-red-500/30 text-[10px] text-red-800 flex items-center gap-1">
-            <ShieldCheck size={13} />
-            <span>Quy chuẩn LUA Studio: 100% áo dài phải qua 6-7h giặt hấp sinh học và khử khuẩn trước khi giao khách tiếp theo.</span>
+
+          {!isTimeOrderValid && (
+            <div className="p-3 bg-brand-gold/15 border border-brand-gold text-xs font-sans text-brand-foreground flex items-start gap-2">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-brand-accent" />
+              <span>
+                <strong>Invalid time slot:</strong> For a 1-day rental, return time ({returnTime}) must be after pickup time ({pickupTime}).
+              </span>
+            </div>
+          )}
+
+          {isAfterHoursReturn && (
+            <div className="p-3 bg-brand-gold/20 border border-brand-gold text-xs font-sans text-brand-foreground flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wide">
+                <AlertTriangle size={15} />
+                <span>AFTER-HOURS RETURN NOTICE (AFTER {settings.businessCloseTime})</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-brand-muted">
+                Our studio closes at {settings.businessCloseTime}. Returning at{" "}
+                <strong>{returnTime}</strong> includes an after-hours coordination surcharge of{" "}
+                <strong>+{formatAud(settings.afterHoursFeeAud)}</strong>.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="p-3.5 bg-brand-surface/20 border border-brand-border/60 text-xs font-sans text-brand-muted flex items-start gap-2.5">
+          <Truck size={16} className="shrink-0 mt-0.5 text-brand-foreground" />
+          <div>
+            <p className="font-medium uppercase tracking-wider text-brand-foreground text-[11px]">
+              AUSTRALIA POST EXPRESS DISPATCH &amp; PREPAID RETURN
+            </p>
+            <p className="mt-1 leading-relaxed">
+              Dispatched ahead of your start date ({pickupDate}) with a prepaid return satchel
+              included. Lodge at any Australia Post outlet by {returnDate} before 5:00 PM.
+            </p>
           </div>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          8. TỔNG HỢP GIÁ TIỀN MINH BẠCH (PRICE BREAKDOWN)
-      ─────────────────────────────────────────────────────────────── */}
+      {/* 4-DAY PACKAGE MON-WED LOCK ALERT */}
+      {isStartWeekdayLocked && (
+        <div className="p-4 bg-brand-accent/10 border border-brand-accent text-xs font-sans text-brand-foreground flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-brand-accent">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>MONDAY – WEDNESDAY LOCKED FOR 4-DAY PACKAGES</span>
+          </div>
+          <p className="text-[11px] leading-relaxed">
+            Your selected start date ({pickupDate}) falls on a{" "}
+            <strong>{getWeekdayName(pickupDate)}</strong>. 4-day rental packages can only start on{" "}
+            <strong>Thursday, Friday, Saturday, or Sunday</strong>. Please choose an available
+            Thu–Sun date on the calendar.
+          </p>
+        </div>
+      )}
+
+      {/* CONFLICT ALERT (1-DAY TURNAROUND GAP) */}
+      {bookingConflict && (
+        <div className="p-4 bg-brand-accent/10 border border-brand-accent text-xs font-sans text-brand-foreground flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-brand-accent">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>DATES UNAVAILABLE — {gapDays}-DAY GARMENT TURNAROUND GAP</span>
+          </div>
+          <p className="text-[11px] leading-relaxed">{bookingConflict.reason}</p>
+          <div className="mt-1 pt-1.5 border-t border-brand-accent/25 text-[10px] text-brand-muted flex items-center gap-1.5">
+            <ShieldCheck size={13} />
+            <span>
+              {settings.siteName} standard: Every garment receives a mandatory {gapDays}-day eco-steaming &amp; inspection interval between bookings.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* AUD PRICE BREAKDOWN */}
       <div className="p-4 bg-brand-surface/20 border border-brand-border/60 flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs font-sans text-brand-muted">
-          <span>Tiền thuê áo dài ({rentalDays} ngày):</span>
-          <span className="text-brand-foreground font-medium">${rentalPriceAud} AUD</span>
+          <span>
+            Garment Rental ({rentalDays} {rentalDays === 1 ? "day" : "days"}):
+          </span>
+          <span className="text-brand-foreground font-medium">{formatAud(rentalFeeAud)}</span>
         </div>
 
-        {deliveryFeeAud > 0 && (
-          <div className="flex items-center justify-between text-xs font-sans text-brand-muted">
-            <span>Phí bưu điện chuyển phát (Australia Post):</span>
-            <span className="text-brand-foreground font-medium">+${deliveryFeeAud} AUD</span>
-          </div>
-        )}
+        <div className="flex items-center justify-between text-xs font-sans text-brand-muted">
+          <span>
+            Delivery ({deliveryMethod === "pick_in_person" ? "Pick in Person" : "Transport Post"}):
+          </span>
+          <span className="text-brand-foreground font-medium">
+            {deliveryFeeAud === 0 ? "Free ($0.00 AUD)" : `+${formatAud(deliveryFeeAud)}`}
+          </span>
+        </div>
 
         {afterHoursFeeAud > 0 && (
-          <div className="flex items-center justify-between text-xs font-sans text-amber-800">
-            <span>Phụ phí trả đồ sau 21:00 (Ngoài giờ):</span>
-            <span className="font-medium">+${afterHoursFeeAud} AUD</span>
+          <div className="flex items-center justify-between text-xs font-sans text-brand-accent">
+            <span>After-Hours Return Surcharge:</span>
+            <span className="font-medium">+{formatAud(afterHoursFeeAud)}</span>
           </div>
         )}
 
-        <div className="pt-2 border-t border-brand-border/40 flex items-baseline justify-between">
+        <div className="pt-2.5 border-t border-brand-border/50 flex items-baseline justify-between">
           <div>
-            <span className="text-[11px] font-sans tracking-widest uppercase text-brand-muted block">
-              TỔNG CỘNG THANH TOÁN:
+            <span className="text-[10px] font-sans tracking-widest uppercase text-brand-muted block">
+              TOTAL AMOUNT (AUD)
             </span>
             <span className="font-serif text-2xl font-normal text-brand-foreground">
-              ${totalAud.toFixed(2)} AUD
-            </span>
-            <span className="text-xs font-sans text-brand-muted ml-2">
-              ({totalVndFormatted})
+              {formatAud(totalAud)}
             </span>
           </div>
-
           <span className="text-[10px] font-mono tracking-wider uppercase bg-brand-sage px-2 py-1 text-brand-foreground border border-brand-border/40">
-            {product.code || "AD-12"} • Size {selectedSize}
+            {product.code} · Size {selectedSize}
           </span>
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          9. NÚT HÀNH ĐỘNG: THÊM VÀO GIỎ HÀNG (ADD TO BAG)
-      ─────────────────────────────────────────────────────────────── */}
+      {/* CTA BUTTONS */}
       <div className="flex flex-col gap-2.5">
         <button
           type="button"
-          disabled={Boolean(bookingConflict) || !isTimeOrderValid}
-          onClick={handleAddToCart}
+          disabled={!canBook}
+          onClick={handleAddToBag}
           className={cn(
             "w-full py-4 text-xs font-sans tracking-[0.2em] uppercase transition-all duration-300 flex items-center justify-center gap-2 font-medium",
-            (Boolean(bookingConflict) || !isTimeOrderValid) &&
+            !canBook &&
               "bg-brand-surface/40 text-brand-muted border border-brand-border cursor-not-allowed opacity-50",
-            !bookingConflict &&
-              isTimeOrderValid &&
+            canBook &&
               !isAddedSuccess &&
-              "bg-brand-foreground text-brand-background hover:bg-brand-foreground/90 cursor-pointer shadow-none",
+              "bg-brand-foreground text-brand-background hover:bg-brand-foreground/90 cursor-pointer",
             isAddedSuccess &&
               "bg-brand-sage text-brand-foreground border border-brand-border cursor-default"
           )}
@@ -785,24 +925,36 @@ export default function ProductBookingInteractive({
           {isAddedSuccess ? (
             <>
               <Check size={16} />
-              <span>ĐÃ THÊM LỊCH BOOKING VÀO GIỎ HÀNG!</span>
+              <span>ADDED TO SHOPPING BAG</span>
             </>
+          ) : isStartWeekdayLocked ? (
+            <span>MON–WED LOCKED FOR 4-DAY PACKAGE — PICK THU–SUN</span>
           ) : bookingConflict ? (
-            <span>KHUNG GIỜ BỊ TRÙNG — VUI LÒNG ĐỔI LỊCH</span>
+            <span>DATES CONFLICT — PLEASE SELECT OTHER DATES</span>
           ) : !isTimeOrderValid ? (
-            <span>GIỜ LẤY PHẢI TRƯỚC GIỜ TRẢ</span>
+            <span>RETURN TIME MUST BE AFTER PICKUP TIME</span>
           ) : (
             <>
               <ShoppingBag size={16} />
-              <span>THÊM VÀO GIỎ HÀNG — ${totalAud.toFixed(2)} AUD</span>
+              <span>ADD TO BAG — {formatAud(totalAud)}</span>
             </>
           )}
         </button>
 
-        <p className="text-[11px] font-sans text-brand-muted text-center leading-relaxed">
-          * Đặt cọc an toàn & tùy chọn thử trực tiếp tại studio Melbourne
-          sẽ được xác nhận ở bước tiếp theo.
-        </p>
+        <button
+          type="button"
+          disabled={!canBook}
+          onClick={handleBookNow}
+          className={cn(
+            "w-full py-3.5 text-xs font-sans tracking-[0.2em] uppercase border transition-all flex items-center justify-center gap-2 font-medium",
+            !canBook
+              ? "border-brand-border/40 text-brand-muted opacity-40 cursor-not-allowed"
+              : "border-brand-foreground text-brand-foreground bg-transparent hover:bg-brand-surface/40 cursor-pointer"
+          )}
+        >
+          <span>BOOK &amp; CHECKOUT AS GUEST</span>
+          <ArrowRight size={15} />
+        </button>
       </div>
     </div>
   );

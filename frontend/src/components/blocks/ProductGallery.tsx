@@ -1,48 +1,56 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import { type Product } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface ProductGalleryProps {
   images: Product["images"];
   productName: string;
 }
 
-/**
- * ProductGallery — ảnh lớn trái + thumbnails.
- * Desktop: image left / details right (layout do parent page.tsx xử lý).
- * Chi tiết build ở Phase 5.
- */
 export default function ProductGallery({ images, productName }: ProductGalleryProps) {
-  const [mainImage, ...thumbnails] = images;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const safeImages = images.length > 0 ? images : ["/images/aodai-ivory.jpg"];
+  const mainImage = safeImages[activeIndex] || safeImages[0];
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Main image */}
-      <div className="relative aspect-[2/3] bg-brand-card overflow-hidden">
-        {mainImage && (
-          <Image
-            src={mainImage}
-            alt={productName}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-        )}
+      <div className="relative w-full aspect-[3/4] bg-brand-surface/30 overflow-hidden border border-brand-border/40">
+        <Image
+          src={mainImage}
+          alt={productName}
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 768px) 100vw, 50vw"
+        />
       </div>
 
-      {/* Thumbnails */}
-      {thumbnails.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
-          {thumbnails.map((img, i) => (
-            <div key={i} className="relative aspect-square bg-brand-card overflow-hidden">
+      {safeImages.length > 1 && (
+        <div className="grid grid-cols-4 gap-2.5">
+          {safeImages.map((img, i) => (
+            <button
+              key={`${img}-${i}`}
+              type="button"
+              onClick={() => setActiveIndex(i)}
+              className={cn(
+                "relative aspect-[3/4] bg-brand-card overflow-hidden border transition-all cursor-pointer",
+                i === activeIndex
+                  ? "border-brand-foreground opacity-100"
+                  : "border-brand-border/50 opacity-65 hover:opacity-100"
+              )}
+              aria-label={`View image ${i + 1} of ${productName}`}
+            >
               <Image
                 src={img}
-                alt={`${productName} — ảnh ${i + 2}`}
+                alt={`${productName} — view ${i + 1}`}
                 fill
-                className="object-cover cursor-pointer hover:opacity-80 transition-opacity duration-200"
-                sizes="25vw"
+                className="object-cover"
+                sizes="20vw"
               />
-            </div>
+            </button>
           ))}
         </div>
       )}

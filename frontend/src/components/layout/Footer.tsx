@@ -1,46 +1,73 @@
+"use client";
+
 import Link from "next/link";
 import { FaInstagram as Instagram, FaFacebook as Facebook } from "react-icons/fa6";
-import { NAV_LINKS, STUDIO_INFO } from "@/lib/constants";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 import { cn } from "@/lib/utils";
 
-/**
- * Footer — nền brand.surface, studio info + social links + nav.
- * Theo MASTER.md: "Minimal footer: studio information and social links, on --color-surface"
- */
 export default function Footer() {
+  const { settings } = useSiteSettings();
+
+  const footerLinks = [
+    { label: "Home", href: "/" },
+    { label: "The Archive", href: "/product" },
+    { label: "About Us", href: "/#about" },
+    { label: "Process & Size Guide", href: "/size-guide" },
+    { label: "Guest Checkout", href: "/checkout" },
+    { label: "Admin Console", href: "/admin" },
+  ];
+
   return (
     <footer className="bg-brand-surface border-t border-brand-border">
       <div className="mx-auto max-w-[1280px] px-6 md:px-10 lg:px-16 py-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-
-          {/* Studio info */}
+          {/* Studio Identity */}
           <div className="flex flex-col gap-3">
-            <p className="font-serif text-brand-foreground text-sm uppercase tracking-[0.2em]">
-              {STUDIO_INFO.name}
-            </p>
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={settings.logoUrl}
+                alt={settings.siteName}
+                className="h-10 w-10 object-contain mix-blend-multiply"
+              />
+              <div>
+                <p className="font-serif text-brand-foreground text-base uppercase tracking-[0.2em]">
+                  {settings.siteName}
+                </p>
+                <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-brand-muted">
+                  @{settings.siteHandle} · {settings.currency}
+                </p>
+              </div>
+            </div>
             <p className="text-xs font-sans text-brand-muted leading-relaxed">
-              {STUDIO_INFO.tagline}
+              {settings.tagline}
             </p>
             <p className="text-xs font-sans text-brand-muted">
-              {STUDIO_INFO.address}
+              {settings.studioAddress}
             </p>
             <a
-              href={`mailto:${STUDIO_INFO.email}`}
+              href={`mailto:${settings.contactEmail}`}
               className={cn(
                 "text-xs font-sans text-brand-muted",
                 "hover:text-brand-foreground transition-colors duration-200",
                 "focus-visible:outline-2 focus-visible:outline-brand-ring focus-visible:outline-offset-2"
               )}
             >
-              {STUDIO_INFO.email}
+              {settings.contactEmail}
             </a>
+            <p className="text-xs font-sans text-brand-muted">
+              {settings.contactPhone} · Hours: {settings.businessOpenTime} – {settings.businessCloseTime}
+            </p>
           </div>
 
-          {/* Nav links */}
+          {/* Navigation */}
           <nav aria-label="Footer navigation">
-            <ul className="flex flex-col gap-3">
-              {NAV_LINKS.map((link) => (
-                <li key={link.id}>
+            <p className="text-xs font-sans uppercase tracking-widest text-brand-foreground mb-4">
+              Explore
+            </p>
+            <ul className="flex flex-col gap-2.5">
+              {footerLinks.map((link) => (
+                <li key={link.href}>
                   <Link
                     href={link.href}
                     className={cn(
@@ -56,26 +83,30 @@ export default function Footer() {
             </ul>
           </nav>
 
-          {/* Social links */}
+          {/* Social & Policies */}
           <div className="flex flex-col gap-4">
             <p className="text-xs font-sans uppercase tracking-widest text-brand-foreground">
-              Follow
+              Connect
             </p>
             <div className="flex gap-4">
-              <SocialLink href={STUDIO_INFO.instagram} label="Instagram">
+              <SocialLink href={settings.instagramUrl} label="Instagram">
                 <Instagram size={18} aria-hidden />
               </SocialLink>
-              <SocialLink href={STUDIO_INFO.facebook} label="Facebook">
+              <SocialLink href={settings.facebookUrl} label="Facebook">
                 <Facebook size={18} aria-hidden />
               </SocialLink>
             </div>
+            <p className="text-xs font-sans text-brand-muted leading-relaxed pt-2">
+              All rental rates are displayed in Australian Dollars ({settings.currency}).
+              Pick in Person available for 1, 2, 4 &amp; 8 days. Transport Post available for 4 &amp; 8 days.
+            </p>
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-12 pt-6 border-t border-brand-border">
-          <p className="text-xs font-sans text-brand-muted text-center">
-            © 2026 {STUDIO_INFO.name}. All rights reserved.
+        <div className="mt-12 pt-6 border-t border-brand-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-sans text-brand-muted">
+          <p>© 2026 {settings.siteName}. All rights reserved.</p>
+          <p className="uppercase tracking-widest text-[10px]">
+            Melbourne, Victoria · Australia
           </p>
         </div>
       </div>
