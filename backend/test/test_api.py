@@ -666,8 +666,8 @@ def test_database_url_normalization_and_supabase_storage_upload(
         captured["size"] = len(content)
         return httpx.Response(200, json={"Key": "maison-de-lua-media/test.png"})
 
-    monkeypatch.setenv("SUPABASE_URL", "https://demo-project.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+    monkeypatch.setenv("SUPABASE_URL", "https://demo-project.supabase.co/rest/v1/")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_demo_key")
     monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "maison-de-lua-media")
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
@@ -686,3 +686,7 @@ def test_database_url_normalization_and_supabase_storage_upload(
     assert str(captured["url"]).startswith(
         "https://demo-project.supabase.co/storage/v1/object/maison-de-lua-media/"
     )
+    sent_headers = captured["headers"]
+    assert isinstance(sent_headers, dict)
+    assert "Authorization" not in sent_headers
+    assert sent_headers["apikey"] == "sb_secret_demo_key"

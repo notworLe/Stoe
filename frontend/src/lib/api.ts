@@ -16,12 +16,13 @@ import {
   type TransactionStatus,
 } from "@/types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 function getServerApiBase(): string {
   if (typeof window === "undefined") {
-    return process.env.INTERNAL_API_URL || API_BASE_URL;
+    return (process.env.INTERNAL_API_URL || API_BASE_URL).replace(/\/+$/, "");
   }
   return API_BASE_URL;
 }
