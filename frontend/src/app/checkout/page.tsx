@@ -135,7 +135,7 @@ export default function CheckoutPage() {
     const { transaction, bookings } = receipt;
     return (
       <main className="min-h-screen bg-brand-background text-brand-foreground">
-        <Section className="pt-10 pb-24 max-w-4xl mx-auto">
+        <Section className="pt-10 pb-24" containerClassName="max-w-4xl">
           <div className="border border-brand-border bg-brand-card p-6 md:p-10">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-brand-border">
               <div className="flex items-start gap-3">
@@ -333,7 +333,7 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <main className="min-h-screen bg-brand-background text-brand-foreground">
-        <Section className="py-24 text-center max-w-xl mx-auto">
+        <Section className="py-24" containerClassName="max-w-xl text-center">
           <p className="text-xs font-sans uppercase tracking-[0.25em] text-brand-muted mb-3">
             {settings.siteName} · GUEST CHECKOUT
           </p>

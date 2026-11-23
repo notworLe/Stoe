@@ -3,30 +3,22 @@ import { cn } from "@/lib/utils";
 interface SectionProps {
   children: React.ReactNode;
   className?: string;
+  /** Extra classes applied directly to the inner max-width container wrapping children */
+  containerClassName?: string;
   as?: "section" | "div" | "article" | "aside";
-  /** Nếu true: không thêm padding ngang (dùng cho hero full-bleed) */
+  /** Omit horizontal padding and max-width constraint (e.g., full-bleed hero) */
   fullBleed?: boolean;
 }
 
 /**
- * Section layout wrapper — chuẩn hoá max-width và padding cho mọi section.
- *
- * Max-width: 1280px (desktop), padding ngang tự động scale theo viewport.
- * Padding dọc: py-24 (96px) — generous whitespace theo MASTER.md.
- *
- * @example
- * <Section>
- *   <h2>...</h2>
- * </Section>
- *
- * // Full-bleed (hero image)
- * <Section fullBleed className="py-0">
- *   <img ... />
- * </Section>
+ * Standardised editorial section wrapper.
+ * Put layout spacing for children (e.g. flex, gap-*, space-y-*, max-w-*)
+ * on `containerClassName` so it applies directly to the container holding `{children}`.
  */
 export default function Section({
   children,
   className,
+  containerClassName,
   as: Tag = "section",
   fullBleed = false,
 }: SectionProps) {
@@ -34,14 +26,15 @@ export default function Section({
     <Tag
       className={cn(
         "w-full",
-        !fullBleed && "py-24",          // --space-2xl = 96px
+        !fullBleed && "py-24",
         className
       )}
     >
       <div
         className={cn(
           "mx-auto w-full",
-          !fullBleed && "max-w-[1280px] px-6 md:px-10 lg:px-16"
+          !fullBleed && "max-w-[1280px] px-6 md:px-10 lg:px-16",
+          containerClassName
         )}
       >
         {children}
