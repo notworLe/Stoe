@@ -28,15 +28,21 @@ async def upload_media_bytes(
 
     if settings.supabase_url and settings.supabase_service_role_key:
         bucket = settings.supabase_storage_bucket or "maison-de-lua-media"
+        base_url = settings.supabase_url.rstrip("/")
+        if base_url.endswith("/rest/v1"):
+            base_url = base_url[: -len("/rest/v1")]
         upload_endpoint = (
-            f"{settings.supabase_url}/storage/v1/object/{bucket}/{unique_name}"
+            f"{base_url}/storage/v1/object/{bucket}/{unique_name}"
         )
+        key = settings.supabase_service_role_key
         headers = {
-            "Authorization": f"Bearer {settings.supabase_service_role_key}",
-            "apikey": settings.supabase_service_role_key,
+            "apikey": key,
             "Content-Type": content_type,
             "x-upsert": "true",
         }
+        # Legacy JWT service_role keys use Bearer header; newer sb_secret_ keys use apikey only
+        if not key.startswith("sb_secret_"):
+            headers["Authorization"] = f"Bearer {key}"
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 response = await client.post(
@@ -60,7 +66,7 @@ async def upload_media_bytes(
             )
 
         public_url = (
-            f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{unique_name}"
+            f"{base_url}/storage/v1/object/public/{bucket}/{unique_name}"
         )
         return public_url, unique_name, "supabase"
 
